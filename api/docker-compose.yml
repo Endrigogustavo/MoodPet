@@ -1,0 +1,16 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # Persist SQLite outside the container
+      - DATABASE_URL=sqlite+aiosqlite:////data/moodpet.db
+    volumes:
+      - moodpet_data:/data
+    restart: unless-stopped
+
+volumes:
+  moodpet_data:
