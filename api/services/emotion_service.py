@@ -7,7 +7,6 @@ Falls back to MediaPipe landmarks when DeepFace is unavailable.
 import asyncio
 import base64
 import concurrent.futures
-import io
 import os
 import sys
 import threading
@@ -17,7 +16,6 @@ from typing import Optional
 
 import cv2
 import numpy as np
-from PIL import Image
 
 from utils.logger import setup_logger
 
@@ -153,7 +151,7 @@ class EmotionDetectionService:
     def __init__(self):
         if not hasattr(self, "_initialized"):
             self._initialized = True
-            self._fallback_prev_scores: Optional[dict[str, float]] = None
+            self._fallback_prev_scores_by_session: dict[str, dict[str, float]] = {}
             self._session_state: dict[str, SessionTemporalState] = {}
             # OpenCV Haar cascades and some image ops can be unstable when invoked concurrently
             # across multiple threads. Serialize detection work to avoid rare segfaults.
@@ -314,14 +312,19 @@ class EmotionDetectionService:
             if "," in frame_data:
                 frame_data = frame_data.split(",")[1]
             img_bytes = base64.b64decode(frame_data)
-            img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
-            frame = np.array(img)
+            np_buffer = np.frombuffer(img_bytes, dtype=np.uint8)
+            decoded = cv2.imdecode(np_buffer, cv2.IMREAD_COLOR)
+            if decoded is None:
+                raise ValueError("invalid image bytes")
+
+            # OpenCV decodes in BGR; convert once to RGB to keep downstream logic unchanged.
+            frame = cv2.cvtColor(decoded, cv2.COLOR_BGR2RGB)
 
             # Keep a bounded frame size for lower latency and more stable processing time.
             h, w = frame.shape[:2]
             max_dim = max(h, w)
-            if max_dim > 640:
-                scale = 640.0 / float(max_dim)
+            if max_dim > 800:
+                scale = 800.0 / float(max_dim)
                 frame = cv2.resize(
                     frame,
                     (max(1, int(w * scale)), max(1, int(h * scale))),
@@ -337,6 +340,15 @@ class EmotionDetectionService:
     def _enhance_frame_for_emotion(self, frame: np.ndarray) -> np.ndarray:
         """Improve contrast/sharpness while preserving natural facial tones."""
         try:
+            # Skip heavy enhancement when frame quality is already good.
+            gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+            brightness = float(np.mean(gray)) / 255.0
+            contrast = float(np.std(gray)) / 64.0
+            sharpness = float(cv2.Laplacian(gray, cv2.CV_64F).var()) / 140.0
+            quality_ok = 0.18 <= brightness <= 0.9 and contrast >= 0.5 and sharpness >= 0.33
+            if quality_ok:
+                return frame
+
             lab = cv2.cvtColor(frame, cv2.COLOR_RGB2LAB)
             l, a, b = cv2.split(lab)
             clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
@@ -354,24 +366,45 @@ class EmotionDetectionService:
 
     def _cleanup_old_sessions(self, now_ts: float):
         if len(self._session_state) <= 128:
-            return
+            if len(self._fallback_prev_scores_by_session) <= 128:
+                return
         stale_keys = [
             key for key, state in self._session_state.items()
             if now_ts - state.updated_at > 20 * 60
         ]
         for key in stale_keys:
             self._session_state.pop(key, None)
+            self._fallback_prev_scores_by_session.pop(key, None)
+
+        if len(self._fallback_prev_scores_by_session) > 128:
+            for key in list(self._fallback_prev_scores_by_session.keys())[:32]:
+                if key not in self._session_state:
+                    self._fallback_prev_scores_by_session.pop(key, None)
 
     def _apply_temporal_smoothing(self, result: EmotionResult, session_id: Optional[str]) -> EmotionResult:
         """Temporal EMA + hysteresis per session to reduce flicker and false positives."""
         if not session_id or not result.face_detected or not result.all_scores:
             return result
 
+        low_conf_generic = result.emotion != "neutral" and result.confidence < 0.16
+        low_conf_anxious_like = result.emotion in {"anxious", "angry", "disgusted"} and result.confidence < 0.4
+        subtle_positive = result.emotion in {"happy", "sad", "surprised"} and result.confidence >= 0.2
+
         now_ts = time.time()
         self._cleanup_old_sessions(now_ts)
 
         state = self._session_state.get(session_id)
         if state is None:
+            if (low_conf_generic or low_conf_anxious_like) and not subtle_positive:
+                boosted_scores = dict(result.all_scores)
+                boosted_scores["neutral"] = max(
+                    boosted_scores.get("neutral", 0.0),
+                    boosted_scores.get(result.emotion, 0.0),
+                )
+                result.emotion = "neutral"
+                result.confidence = round(min(0.36, max(0.0, result.confidence)), 3)
+                result.all_scores = self._normalize_scores(boosted_scores)
+
             state = SessionTemporalState(
                 scores_ema=dict(result.all_scores),
                 last_emotion=result.emotion,
@@ -395,10 +428,13 @@ class EmotionDetectionService:
         secondary = ranking[1][0] if len(ranking) > 1 else None
         secondary_score = ranking[1][1] if len(ranking) > 1 else 0.0
         gap = max(0.0, candidate_score - secondary_score)
+        prev_score = smoothed_scores.get(state.last_emotion, 0.0)
+        ambiguous_signal = gap < 0.09 or candidate_score < 0.28
+        borderline_swap = candidate != state.last_emotion and candidate_score <= (prev_score + 0.04)
 
         chosen = state.last_emotion
         if candidate != state.last_emotion:
-            strong_switch = result.confidence >= 0.84 and gap >= 0.18
+            strong_switch = result.confidence >= 0.88 and gap >= 0.2
             neutral_to_emotion = state.last_emotion == "neutral" and candidate != "neutral"
             negative_to_other = state.last_emotion in {"sad", "anxious", "angry", "disgusted", "fearful"} and candidate != state.last_emotion
             if state.pending_emotion == candidate:
@@ -407,11 +443,16 @@ class EmotionDetectionService:
                 state.pending_emotion = candidate
                 state.pending_count = 1
 
+            if ambiguous_signal and borderline_swap:
+                state.pending_count = min(state.pending_count, 1)
+
+            positive_emotion = candidate in {"happy", "sad", "surprised"}
             if (
                 strong_switch
-                or (state.pending_count >= 2 and gap >= 0.08)
-                or (neutral_to_emotion and state.pending_count >= 1 and gap >= 0.06)
-                or (negative_to_other and state.pending_count >= 1 and gap >= 0.05)
+                or (positive_emotion and state.pending_count >= 2 and gap >= 0.06)
+                or (state.pending_count >= 3 and gap >= 0.11 and not ambiguous_signal)
+                or (neutral_to_emotion and positive_emotion and state.pending_count >= 2 and gap >= 0.05)
+                or (negative_to_other and state.pending_count >= 2 and gap >= 0.1)
             ):
                 chosen = candidate
                 state.last_emotion = candidate
@@ -422,6 +463,19 @@ class EmotionDetectionService:
             state.pending_count = 0
 
         confidence = self._clip01((result.confidence * 0.45) + (candidate_score * 0.55))
+        if chosen == state.last_emotion and candidate != chosen and ambiguous_signal:
+            confidence = self._clip01(confidence * 0.9)
+
+        if chosen in {"anxious", "angry", "disgusted"} and confidence < 0.4:
+            chosen = "neutral"
+            state.last_emotion = "neutral"
+        elif chosen in {"happy", "sad", "surprised"} and confidence < 0.18:
+            chosen = "neutral"
+            state.last_emotion = "neutral"
+        elif chosen != "neutral" and confidence < 0.14:
+            chosen = "neutral"
+            state.last_emotion = "neutral"
+
         variant, zone, tip = self._derive_variant(chosen, confidence, secondary)
 
         state.scores_ema = smoothed_scores
@@ -436,7 +490,7 @@ class EmotionDetectionService:
         result.support_tip = tip
         return result
 
-    def _fallback_detect(self, frame: np.ndarray) -> EmotionResult:
+    def _fallback_detect(self, frame: np.ndarray, session_id: Optional[str] = None) -> EmotionResult:
         """Heuristic fallback using OpenCV face/eye/smile cues."""
         if not getattr(self, "_opencv_enabled", True):
             return EmotionResult(
@@ -552,17 +606,23 @@ class EmotionDetectionService:
 
             mouth_open_score = self._clip01(float(mouth_edges.mean()) / 55.0)
             eyebrow_tension = self._clip01(float(upper_edges.mean()) / 55.0)
+            calm_face_score = self._clip01((eye_score * 0.6) + ((1.0 - eyebrow_tension) * 0.4))
 
             # More dynamic fallback: estimates rough emotional tendencies from visual cues.
             scores = {
-                "neutral": 0.18 + 0.08 * (1 - smile_score),
+                "neutral": 0.26 + 0.12 * calm_face_score + 0.06 * (1 - mouth_open_score),
                 "happy": 0.07 + 0.56 * smile_score + 0.09 * eye_score,
                 "surprised": 0.08 + 0.48 * mouth_open_score * eye_score + 0.08 * face_area_ratio,
                 "sad": 0.07 + 0.22 * (1 - eye_score) + 0.16 * (1 - smile_score),
-                "anxious": 0.08 + 0.26 * mouth_open_score + 0.20 * (1 - eye_score) + 0.10 * eyebrow_tension,
+                "anxious": 0.04 + 0.16 * mouth_open_score + 0.14 * (1 - eye_score) + 0.12 * eyebrow_tension,
                 "angry": 0.08 + 0.28 * eyebrow_tension + 0.16 * (1 - smile_score),
                 "disgusted": 0.06 + 0.14 * mouth_open_score * (1 - eye_score) + 0.10 * eyebrow_tension,
             }
+
+            # Calm facial posture should not be interpreted as anxious.
+            if calm_face_score > 0.62 and mouth_open_score < 0.36:
+                scores["neutral"] += 0.1
+                scores["anxious"] *= 0.72
 
             if smile_score > 0.62 and eye_score > 0.4:
                 scores["happy"] += 0.14
@@ -589,6 +649,11 @@ class EmotionDetectionService:
                 scores["sad"] += 0.12
                 scores["neutral"] -= 0.06
 
+            # Avoid anxious over-detection on stable, reasonably open faces.
+            if eye_score > 0.48 and eyebrow_tension < 0.46:
+                scores["anxious"] *= 0.76
+                scores["neutral"] += 0.06
+
             # Reduce false "sad" under normal camera posture with decent facial openness.
             if eye_score > 0.52 and mouth_open_score > 0.2:
                 scores["sad"] *= 0.78
@@ -607,16 +672,17 @@ class EmotionDetectionService:
                 scores[key] = max(0.01, scores[key])
 
             normalized = self._normalize_scores(scores)
-            if self._fallback_prev_scores:
+            prev_scores = self._fallback_prev_scores_by_session.get(session_id or "__global__")
+            if prev_scores:
                 quality_score = self._clip01((brightness_score * 0.45) + (sharpness_score * 0.55))
                 prev_weight = 0.48 if quality_score < 0.35 else 0.34
                 new_weight = 1.0 - prev_weight
                 smoothed = {}
                 for key, value in normalized.items():
-                    prev = self._fallback_prev_scores.get(key, value)
+                    prev = prev_scores.get(key, value)
                     smoothed[key] = round(prev * prev_weight + value * new_weight, 3)
                 normalized = self._normalize_scores(smoothed)
-            self._fallback_prev_scores = normalized
+            self._fallback_prev_scores_by_session[session_id or "__global__"] = normalized
 
             ranking = sorted(normalized.items(), key=lambda kv: kv[1], reverse=True)
             primary, primary_score = ranking[0]
@@ -649,6 +715,23 @@ class EmotionDetectionService:
                     secondary = ranking[1][0] if len(ranking) > 1 else None
                     secondary_score = ranking[1][1] if len(ranking) > 1 else 0.0
 
+            # Strong guard for false "anxious" on neutral/happy-like expressions.
+            if primary == "anxious":
+                anxious_gap = max(0.0, primary_score - secondary_score)
+                weak_anxious_signal = (
+                    eyebrow_tension < 0.48
+                    or anxious_gap < 0.1
+                    or (secondary in {"neutral", "happy"} and secondary_score >= primary_score - 0.07)
+                )
+                if weak_anxious_signal:
+                    normalized["anxious"] *= 0.68
+                    normalized["neutral"] = normalized.get("neutral", 0.0) + 0.09
+                    normalized = self._normalize_scores(normalized)
+                    ranking = sorted(normalized.items(), key=lambda kv: kv[1], reverse=True)
+                    primary, primary_score = ranking[0]
+                    secondary = ranking[1][0] if len(ranking) > 1 else None
+                    secondary_score = ranking[1][1] if len(ranking) > 1 else 0.0
+
             separation = max(0.0, primary_score - secondary_score)
             ambiguous = separation < 0.055 or primary_score < 0.25
             if ambiguous:
@@ -656,6 +739,18 @@ class EmotionDetectionService:
                 normalized = self._normalize_scores(normalized)
                 ranking = sorted(normalized.items(), key=lambda kv: kv[1], reverse=True)
                 primary, primary_score = ranking[0]
+                secondary = ranking[1][0] if len(ranking) > 1 else None
+                secondary_score = ranking[1][1] if len(ranking) > 1 else 0.0
+                separation = max(0.0, primary_score - secondary_score)
+
+            # If model is uncertain, force neutral instead of a random emotional label.
+            uncertain_label = primary != "neutral" and (primary_score < 0.34 or separation < 0.09)
+            if uncertain_label:
+                primary = "neutral"
+                normalized["neutral"] = max(normalized.get("neutral", 0.0), primary_score)
+                normalized = self._normalize_scores(normalized)
+                ranking = sorted(normalized.items(), key=lambda kv: kv[1], reverse=True)
+                primary_score = normalized.get("neutral", ranking[0][1])
                 secondary = ranking[1][0] if len(ranking) > 1 else None
                 secondary_score = ranking[1][1] if len(ranking) > 1 else 0.0
                 separation = max(0.0, primary_score - secondary_score)
@@ -689,7 +784,7 @@ class EmotionDetectionService:
                 music_suggestions=MUSIC_SUGGESTIONS.get(primary, []),
             )
 
-    def detect_from_frame(self, frame: np.ndarray) -> EmotionResult:
+    def detect_from_frame(self, frame: np.ndarray, session_id: Optional[str] = None) -> EmotionResult:
         """Run emotion detection on a numpy frame."""
         start = time.time()
         enhanced = self._enhance_frame_for_emotion(frame)
@@ -750,7 +845,7 @@ class EmotionDetectionService:
                 logger.error(f"DeepFace analysis error: {e}")
 
         logger.debug("using fallback emotion detector")
-        result = self._fallback_detect(enhanced)
+        result = self._fallback_detect(enhanced, session_id=session_id)
         result.processing_time_ms = round((time.time() - start) * 1000, 1)
         return result
 
@@ -775,7 +870,12 @@ class EmotionDetectionService:
 
         # Run in thread pool to avoid blocking event loop
         loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(self._detect_executor, self.detect_from_frame, frame)
+        result = await loop.run_in_executor(
+            self._detect_executor,
+            self.detect_from_frame,
+            frame,
+            session_id,
+        )
         result = self._apply_temporal_smoothing(result, session_id)
 
         # Attach message
