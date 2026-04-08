@@ -169,6 +169,12 @@ class ActionUnits:
     mouth_roll_upper: float = 0.0
     mouth_shrug_lower: float = 0.0      # Mouth shrug (doubt)
     mouth_shrug_upper: float = 0.0
+    # Extra blendshapes for improved precision
+    mouth_lower_down: float = 0.0       # Lower lip pulled down (disgust/sad)
+    mouth_upper_up: float = 0.0         # Upper lip raise (disgust snarl)
+    mouth_left: float = 0.0             # Mouth shifted left (asymmetric disgust)
+    mouth_right: float = 0.0            # Mouth shifted right
+    brow_inner_up: float = 0.0          # Raw browInnerUp (redundant w/ au1 but useful)
 
 
 @dataclass
@@ -441,6 +447,9 @@ class EmotionDetectionService:
             "mouth_dimple": (au.mouth_dimple_left + au.mouth_dimple_right) / 2.0,
             "mouth_roll": (au.mouth_roll_lower + au.mouth_roll_upper) / 2.0,
             "mouth_shrug": (au.mouth_shrug_lower + au.mouth_shrug_upper) / 2.0,
+            "mouth_lower_down": au.mouth_lower_down,
+            "mouth_upper_up": au.mouth_upper_up,
+            "mouth_lateral": (au.mouth_left + au.mouth_right) / 2.0,
         }
         state.calibration_au_buffer.append(au_dict)
 
@@ -497,6 +506,12 @@ class EmotionDetectionService:
         ms = b.get("mouth_shrug", 0.0) * f
         au.mouth_shrug_lower = max(0.0, au.mouth_shrug_lower - ms)
         au.mouth_shrug_upper = max(0.0, au.mouth_shrug_upper - ms)
+        # New extra blendshapes
+        au.mouth_lower_down = max(0.0, au.mouth_lower_down - b.get("mouth_lower_down", 0.0) * f)
+        au.mouth_upper_up = max(0.0, au.mouth_upper_up - b.get("mouth_upper_up", 0.0) * f)
+        ml = b.get("mouth_lateral", 0.0) * f
+        au.mouth_left = max(0.0, au.mouth_left - ml)
+        au.mouth_right = max(0.0, au.mouth_right - ml)
         return au
 
     # ── Multi-Frame Voting ────────────────────────────────────────────────────
@@ -692,6 +707,10 @@ class EmotionDetectionService:
         m_dimple  = amp((au.mouth_dimple_left + au.mouth_dimple_right) / 2.0, 0.03)
         m_roll    = amp((au.mouth_roll_lower + au.mouth_roll_upper) / 2.0, 0.03)
         m_shrug   = amp((au.mouth_shrug_lower + au.mouth_shrug_upper) / 2.0, 0.03)
+        # New extra channels
+        m_lower   = amp(au.mouth_lower_down, 0.03)
+        m_upper   = amp(au.mouth_upper_up, 0.03)
+        m_lateral = amp((au.mouth_left + au.mouth_right) / 2.0, 0.03)
 
         # ── Positive evidence for each emotion ──
 
@@ -704,24 +723,32 @@ class EmotionDetectionService:
             happy_ev = 0.30 * a12
 
         # Sad: frown + oblique brow raise + eye droop; absence of smile boosts
-        sad_base = (0.28 * a15 + 0.20 * a1 + 0.15 * a43 + 0.12 * a4
-                    + 0.08 * a20 + 0.08 * m_press + 0.05 * m_roll + 0.04 * eye_sqnt)
+        sad_base = (0.26 * a15 + 0.20 * a1 + 0.14 * a43 + 0.12 * a4
+                    + 0.08 * a20 + 0.08 * m_press + 0.05 * m_roll + 0.04 * eye_sqnt
+                    + 0.06 * m_lower)  # lower lip drop adds sadness signal
         no_smile_boost = max(0.0, 1.0 - a12 * 3.0)
         sad_ev = sad_base * (1.0 + 0.5 * no_smile_boost)
         # Co-occurrence: frown + oblique brow = strong sad signal
         if a15 > 0 and a1 > 0:
-            sad_ev += 0.18 * min(a15, a1)
+            sad_ev += 0.20 * min(a15, a1)
         # Frown + eyes closing = crying/tearful
         if a15 > 0 and a43 > 0:
-            sad_ev += 0.12 * min(a15, a43)
+            sad_ev += 0.14 * min(a15, a43)
+        # Brow raise + lower lip drop = holding back tears
+        if a1 > 0 and m_lower > 0:
+            sad_ev += 0.10 * min(a1, m_lower)
 
         # Angry: brow lower + nose wrinkle; co-occurrence = very reliable
-        angry_base = (0.28 * a4 + 0.24 * a9 + 0.14 * a20
-                      + 0.10 * m_press + 0.08 * jaw_lat + 0.08 * m_shrug + 0.05 * m_roll)
+        angry_base = (0.26 * a4 + 0.22 * a9 + 0.14 * a20
+                      + 0.10 * m_press + 0.08 * jaw_lat + 0.08 * m_shrug + 0.05 * m_roll
+                      + 0.04 * m_lateral)  # mouth shift can signal anger
         if a4 > 0 and a9 > 0:
-            angry_base += 0.22 * min(a4, a9)
+            angry_base += 0.24 * min(a4, a9)
         # Tight/pressed mouth boosts anger
         angry_ev = angry_base * (1.0 + 0.35 * m_press)
+        # Brow lower + pressed lips = strong anger
+        if a4 > 0 and m_press > 0:
+            angry_ev += 0.12 * min(a4, m_press)
 
         # Surprised: brow raise, eye wide open, jaw drop, lips part
         surpr_ev = (0.22 * a1 + 0.20 * a2 + 0.20 * a26
@@ -735,31 +762,41 @@ class EmotionDetectionService:
         fear_ev = fear_base + 0.18 * mouth_tension
         # Fear triad: inner brow + wide eyes + lip stretch
         if a1 > 0 and eye_wide > 0 and a20 > 0:
-            fear_ev += 0.15 * min(a1, eye_wide, a20)
+            fear_ev += 0.18 * min(a1, eye_wide, a20)
+        # Wide eyes + brow raise without jaw drop = fear not surprise
+        if eye_wide > 0 and a1 > 0 and a26 < 0.1:
+            fear_ev += 0.10 * min(eye_wide, a1)
 
         # Anxious: subtle micro-tensions, self-soothing mouth movements
-        anx_base = (0.24 * a4 + 0.18 * a20 + 0.14 * a1
+        anx_base = (0.22 * a4 + 0.18 * a20 + 0.14 * a1
                     + 0.12 * a43 + 0.12 * m_roll + 0.10 * m_press + 0.06 * jaw_lat + 0.04 * m_shrug)
         # Self-soothing gestures (lip rolling, pressing) amplify anxiety
         anx_ev = anx_base * (1.0 + 0.6 * (m_roll + m_press))
+        # Lip rolling alone is a strong anxiety cue
+        if m_roll > 0.1:
+            anx_ev += 0.12 * m_roll
 
-        # Disgusted: nose wrinkle dominant, upper lip / pucker / cheek involvement
-        disg_base = (0.32 * a9 + 0.20 * a15 + 0.14 * a4
-                     + 0.16 * m_pucker + 0.10 * cheek_pf + 0.08 * m_shrug)
+        # Disgusted: nose wrinkle dominant, upper lip raise, pucker, cheek involvement
+        disg_base = (0.28 * a9 + 0.18 * a15 + 0.14 * a4
+                     + 0.16 * m_pucker + 0.10 * cheek_pf + 0.08 * m_shrug
+                     + 0.10 * m_upper + 0.06 * m_lateral)  # upper lip raise + mouth shift
         # Nose wrinkle + lip depress together = very strong disgust
         if a9 > 0 and a15 > 0:
-            disg_base += 0.18 * min(a9, a15)
+            disg_base += 0.20 * min(a9, a15)
         if a9 > 0 and m_pucker > 0:
-            disg_base += 0.10 * min(a9, m_pucker)
+            disg_base += 0.12 * min(a9, m_pucker)
+        # Upper lip raise + nose wrinkle = snarl (strongest disgust)
+        if a9 > 0 and m_upper > 0:
+            disg_base += 0.16 * min(a9, m_upper)
         disg_ev = disg_base
 
         # ── Per-emotion gain: compensate for naturally weaker AU signals ──
         # Happy/surprised already produce strong AUs; others need a lift.
-        sad_ev   *= 1.45
-        angry_ev *= 1.40
-        fear_ev  *= 1.35
-        anx_ev   *= 1.50
-        disg_ev  *= 1.40
+        sad_ev   *= 1.50
+        angry_ev *= 1.45
+        fear_ev  *= 1.40
+        anx_ev   *= 1.55
+        disg_ev  *= 1.45
 
         # ── Contradictory suppression (minimal to avoid cancelling weak emotions) ──
         happy_sup  = 0.10 * a4 + 0.08 * a15 + 0.05 * a9
@@ -786,7 +823,8 @@ class EmotionDetectionService:
         second_max = sorted(scores.values(), reverse=True)[1] if len(scores) > 1 else 0.0
         separation_factor = 1.0 + max(0.0, max_emotion - second_max) * 2.5
         total_facial_activity = (a1 + a2 + a4 + a6 + a9 + a12 + a15 + a20 +
-                                 eye_wide + eye_sqnt + m_pucker + m_press) / 12.0
+                                 eye_wide + eye_sqnt + m_pucker + m_press +
+                                 m_lower + m_upper + m_lateral) / 15.0
         neutral_base = 0.30 * (1.0 - max_emotion) ** (1.4 * separation_factor)
         # When face is very active but no single emotion wins, reduce neutral
         neutral_base *= max(0.3, 1.0 - total_facial_activity * 1.5)
@@ -1051,6 +1089,18 @@ class EmotionDetectionService:
                 au.mouth_roll_upper = self._clip01(blendshape_map.get("mouthRollUpper", 0.0))
                 au.mouth_shrug_lower = self._clip01(blendshape_map.get("mouthShrugLower", 0.0))
                 au.mouth_shrug_upper = self._clip01(blendshape_map.get("mouthShrugUpper", 0.0))
+                # Extra blendshapes for improved precision
+                au.mouth_lower_down = self._clip01(
+                    (blendshape_map.get("mouthLowerDownLeft", 0.0)
+                     + blendshape_map.get("mouthLowerDownRight", 0.0)) / 2.0
+                )
+                au.mouth_upper_up = self._clip01(
+                    (blendshape_map.get("mouthUpperUpLeft", 0.0)
+                     + blendshape_map.get("mouthUpperUpRight", 0.0)) / 2.0
+                )
+                au.mouth_left = self._clip01(blendshape_map.get("mouthLeft", 0.0))
+                au.mouth_right = self._clip01(blendshape_map.get("mouthRight", 0.0))
+                au.brow_inner_up = self._clip01(blendshape_map.get("browInnerUp", 0.0))
 
                 au.head_tilt_x = blendshape_map.get("headPitch", 0.0) if "headPitch" in blendshape_map else 0.0
                 au.head_tilt_y = blendshape_map.get("headYaw", 0.0) if "headYaw" in blendshape_map else 0.0
