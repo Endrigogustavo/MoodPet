@@ -633,25 +633,100 @@ function PandaFace({ emotion, size }: { emotion: string; size: number }) {
   const cy = s / 2;
   const r = s * 0.38;
   const color = EMOTION_COLORS[emotion]?.bg || '#F5F5F5';
+  const dark = '#1E1E1E';
+
+  const getEyes = () => {
+    const eyeXL = cx - r * 0.32;
+    const eyeXR = cx + r * 0.32;
+    const eyeY = cy - r * 0.1;
+    switch (emotion) {
+      case 'happy':
+        return (
+          <G>
+            <Ellipse cx={eyeXL} cy={eyeY} rx={r * 0.20} ry={r * 0.16} fill={dark} />
+            <Ellipse cx={eyeXR} cy={eyeY} rx={r * 0.20} ry={r * 0.16} fill={dark} />
+            <Path d={`M${eyeXL - r * 0.06} ${eyeY} Q${eyeXL} ${eyeY - r * 0.08} ${eyeXL + r * 0.06} ${eyeY}`}
+                  stroke="#FFF" strokeWidth={s * 0.024} fill="none" strokeLinecap="round" />
+            <Path d={`M${eyeXR - r * 0.06} ${eyeY} Q${eyeXR} ${eyeY - r * 0.08} ${eyeXR + r * 0.06} ${eyeY}`}
+                  stroke="#FFF" strokeWidth={s * 0.024} fill="none" strokeLinecap="round" />
+          </G>
+        );
+      case 'sad':
+        return (
+          <G>
+            <Ellipse cx={eyeXL} cy={eyeY} rx={r * 0.20} ry={r * 0.16} fill={dark} />
+            <Ellipse cx={eyeXR} cy={eyeY} rx={r * 0.20} ry={r * 0.16} fill={dark} />
+            <Circle cx={eyeXL} cy={eyeY + r * 0.02} r={r * 0.05} fill="#FFF" />
+            <Circle cx={eyeXR} cy={eyeY + r * 0.02} r={r * 0.05} fill="#FFF" />
+            <Ellipse cx={eyeXL + r * 0.12} cy={eyeY + r * 0.18} rx={r * 0.03} ry={r * 0.05} fill="#90CAF9" opacity={0.7} />
+          </G>
+        );
+      case 'angry':
+        return (
+          <G>
+            <Ellipse cx={eyeXL} cy={eyeY} rx={r * 0.20} ry={r * 0.16} fill={dark} />
+            <Ellipse cx={eyeXR} cy={eyeY} rx={r * 0.20} ry={r * 0.16} fill={dark} />
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.06} fill="#FFF" />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.06} fill="#FFF" />
+            <Path d={`M${eyeXL - r * 0.16} ${eyeY - r * 0.10} L${eyeXL + r * 0.12} ${eyeY - r * 0.18}`}
+                  stroke={color} strokeWidth={s * 0.026} fill="none" strokeLinecap="round" />
+            <Path d={`M${eyeXR + r * 0.16} ${eyeY - r * 0.10} L${eyeXR - r * 0.12} ${eyeY - r * 0.18}`}
+                  stroke={color} strokeWidth={s * 0.026} fill="none" strokeLinecap="round" />
+          </G>
+        );
+      case 'surprised':
+        return (
+          <G>
+            <Ellipse cx={eyeXL} cy={eyeY} rx={r * 0.20} ry={r * 0.18} fill={dark} />
+            <Ellipse cx={eyeXR} cy={eyeY} rx={r * 0.20} ry={r * 0.18} fill={dark} />
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.09} fill="#FFF" />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.09} fill="#FFF" />
+          </G>
+        );
+      default:
+        return (
+          <G>
+            <Ellipse cx={eyeXL} cy={eyeY} rx={r * 0.20} ry={r * 0.16} fill={dark} />
+            <Ellipse cx={eyeXR} cy={eyeY} rx={r * 0.20} ry={r * 0.16} fill={dark} />
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.07} fill="#FFF" />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.07} fill="#FFF" />
+          </G>
+        );
+    }
+  };
+
+  const getMouth = () => {
+    const mx = cx;
+    const my = cy + r * 0.30;
+    switch (emotion) {
+      case 'happy':
+        return <Path d={`M${mx - r * 0.16} ${my} Q${mx} ${my + r * 0.14} ${mx + r * 0.16} ${my}`}
+                     stroke={dark} strokeWidth={s * 0.02} fill="none" strokeLinecap="round" />;
+      case 'sad':
+        return <Path d={`M${mx - r * 0.14} ${my + r * 0.06} Q${mx} ${my - r * 0.06} ${mx + r * 0.14} ${my + r * 0.06}`}
+                     stroke={dark} strokeWidth={s * 0.02} fill="none" strokeLinecap="round" />;
+      case 'angry':
+        return <Path d={`M${mx - r * 0.12} ${my} L${mx + r * 0.12} ${my}`}
+                     stroke={dark} strokeWidth={s * 0.022} fill="none" strokeLinecap="round" />;
+      case 'surprised':
+        return <Ellipse cx={mx} cy={my} rx={r * 0.07} ry={r * 0.10} fill={dark} opacity={0.5} />;
+      default:
+        return <Path d={`M${mx - r * 0.10} ${my} Q${mx} ${my + r * 0.06} ${mx + r * 0.10} ${my}`}
+                     stroke={dark} strokeWidth={s * 0.018} fill="none" strokeLinecap="round" />;
+    }
+  };
 
   return (
     <Svg width={s} height={s} viewBox={`0 0 ${s} ${s}`}>
-      <Circle cx={cx - r * 0.7} cy={cy - r * 0.62} r={r * 0.24} fill="#1E1E1E" />
-      <Circle cx={cx + r * 0.7} cy={cy - r * 0.62} r={r * 0.24} fill="#1E1E1E" />
+      <Circle cx={cx - r * 0.7} cy={cy - r * 0.62} r={r * 0.24} fill={dark} />
+      <Circle cx={cx + r * 0.7} cy={cy - r * 0.62} r={r * 0.24} fill={dark} />
 
       <Circle cx={cx} cy={cy} r={r} fill={color} />
-      <Ellipse cx={cx - r * 0.32} cy={cy - r * 0.1} rx={r * 0.2} ry={r * 0.16} fill="#1E1E1E" />
-      <Ellipse cx={cx + r * 0.32} cy={cy - r * 0.1} rx={r * 0.2} ry={r * 0.16} fill="#1E1E1E" />
-      <Circle cx={cx - r * 0.32} cy={cy - r * 0.1} r={r * 0.07} fill="#FFF" />
-      <Circle cx={cx + r * 0.32} cy={cy - r * 0.1} r={r * 0.07} fill="#FFF" />
-      <Ellipse cx={cx} cy={cy + r * 0.15} rx={r * 0.1} ry={r * 0.07} fill="#1E1E1E" />
-      <Path
-        d={`M${cx - r * 0.16} ${cy + r * 0.3} Q${cx} ${cy + r * 0.42} ${cx + r * 0.16} ${cy + r * 0.3}`}
-        stroke="#1E1E1E"
-        strokeWidth={s * 0.02}
-        fill="none"
-        strokeLinecap="round"
-      />
+
+      <Ellipse cx={cx} cy={cy + r * 0.15} rx={r * 0.1} ry={r * 0.07} fill={dark} />
+
+      {getEyes()}
+      {getMouth()}
     </Svg>
   );
 }
@@ -662,6 +737,90 @@ function OwlFace({ emotion, size }: { emotion: string; size: number }) {
   const cy = s / 2;
   const r = s * 0.36;
   const color = EMOTION_COLORS[emotion]?.bg || '#8E6D5A';
+  const dark = '#3E2723';
+
+  const getEyes = () => {
+    const eyeXL = cx - r * 0.28;
+    const eyeXR = cx + r * 0.28;
+    const eyeY = cy - r * 0.12;
+    switch (emotion) {
+      case 'happy':
+        return (
+          <G>
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.22} fill="#FFF8E1" />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.22} fill="#FFF8E1" />
+            <Path d={`M${eyeXL - r * 0.08} ${eyeY} Q${eyeXL} ${eyeY - r * 0.10} ${eyeXL + r * 0.08} ${eyeY}`}
+                  stroke={dark} strokeWidth={s * 0.026} fill="none" strokeLinecap="round" />
+            <Path d={`M${eyeXR - r * 0.08} ${eyeY} Q${eyeXR} ${eyeY - r * 0.10} ${eyeXR + r * 0.08} ${eyeY}`}
+                  stroke={dark} strokeWidth={s * 0.026} fill="none" strokeLinecap="round" />
+          </G>
+        );
+      case 'sad':
+        return (
+          <G>
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.22} fill="#FFF8E1" />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.22} fill="#FFF8E1" />
+            <Circle cx={eyeXL} cy={eyeY + r * 0.02} r={r * 0.07} fill={dark} />
+            <Circle cx={eyeXR} cy={eyeY + r * 0.02} r={r * 0.07} fill={dark} />
+            <Path d={`M${eyeXL - r * 0.14} ${eyeY - r * 0.12} Q${eyeXL} ${eyeY - r * 0.18} ${eyeXL + r * 0.14} ${eyeY - r * 0.16}`}
+                  stroke={dark} strokeWidth={s * 0.016} fill="none" strokeLinecap="round" />
+            <Path d={`M${eyeXR - r * 0.14} ${eyeY - r * 0.16} Q${eyeXR} ${eyeY - r * 0.18} ${eyeXR + r * 0.14} ${eyeY - r * 0.12}`}
+                  stroke={dark} strokeWidth={s * 0.016} fill="none" strokeLinecap="round" />
+          </G>
+        );
+      case 'angry':
+        return (
+          <G>
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.22} fill="#FFF8E1" />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.22} fill="#FFF8E1" />
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.09} fill={dark} />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.09} fill={dark} />
+            <Path d={`M${eyeXL - r * 0.16} ${eyeY - r * 0.10} L${eyeXL + r * 0.12} ${eyeY - r * 0.20}`}
+                  stroke={dark} strokeWidth={s * 0.024} fill="none" strokeLinecap="round" />
+            <Path d={`M${eyeXR + r * 0.16} ${eyeY - r * 0.10} L${eyeXR - r * 0.12} ${eyeY - r * 0.20}`}
+                  stroke={dark} strokeWidth={s * 0.024} fill="none" strokeLinecap="round" />
+          </G>
+        );
+      case 'surprised':
+        return (
+          <G>
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.24} fill="#FFF8E1" />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.24} fill="#FFF8E1" />
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.12} fill={dark} />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.12} fill={dark} />
+            <Circle cx={eyeXL - r * 0.04} cy={eyeY - r * 0.04} r={r * 0.03} fill="#FFF" />
+            <Circle cx={eyeXR - r * 0.04} cy={eyeY - r * 0.04} r={r * 0.03} fill="#FFF" />
+          </G>
+        );
+      default:
+        return (
+          <G>
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.22} fill="#FFF8E1" />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.22} fill="#FFF8E1" />
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.09} fill={dark} />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.09} fill={dark} />
+          </G>
+        );
+    }
+  };
+
+  const getMouth = () => {
+    const mx = cx;
+    const my = cy + r * 0.30;
+    switch (emotion) {
+      case 'happy':
+        return <Path d={`M${mx - r * 0.18} ${my} Q${mx} ${my + r * 0.12} ${mx + r * 0.18} ${my}`}
+                     stroke="#FFF8E1" strokeWidth={s * 0.017} fill="none" strokeLinecap="round" />;
+      case 'sad':
+        return <Path d={`M${mx - r * 0.14} ${my + r * 0.06} Q${mx} ${my - r * 0.04} ${mx + r * 0.14} ${my + r * 0.06}`}
+                     stroke="#FFF8E1" strokeWidth={s * 0.017} fill="none" strokeLinecap="round" />;
+      case 'surprised':
+        return <Ellipse cx={mx} cy={my} rx={r * 0.06} ry={r * 0.08} fill="#FFF8E1" opacity={0.8} />;
+      default:
+        return <Path d={`M${mx - r * 0.12} ${my} Q${mx} ${my + r * 0.04} ${mx + r * 0.12} ${my}`}
+                     stroke="#FFF8E1" strokeWidth={s * 0.016} fill="none" strokeLinecap="round" />;
+    }
+  };
 
   return (
     <Svg width={s} height={s} viewBox={`0 0 ${s} ${s}`}>
@@ -670,19 +829,10 @@ function OwlFace({ emotion, size }: { emotion: string; size: number }) {
 
       <Ellipse cx={cx} cy={cy} rx={r * 0.95} ry={r} fill={color} />
 
-      <Circle cx={cx - r * 0.28} cy={cy - r * 0.12} r={r * 0.22} fill="#FFF8E1" />
-      <Circle cx={cx + r * 0.28} cy={cy - r * 0.12} r={r * 0.22} fill="#FFF8E1" />
-      <Circle cx={cx - r * 0.28} cy={cy - r * 0.12} r={r * 0.09} fill="#3E2723" />
-      <Circle cx={cx + r * 0.28} cy={cy - r * 0.12} r={r * 0.09} fill="#3E2723" />
-
       <Path d={`M${cx} ${cy + r * 0.02} L${cx - r * 0.09} ${cy + r * 0.18} L${cx + r * 0.09} ${cy + r * 0.18} Z`} fill="#F4B400" />
-      <Path
-        d={`M${cx - r * 0.18} ${cy + r * 0.3} Q${cx} ${cy + r * 0.4} ${cx + r * 0.18} ${cy + r * 0.3}`}
-        stroke="#FFF8E1"
-        strokeWidth={s * 0.017}
-        fill="none"
-        strokeLinecap="round"
-      />
+
+      {getEyes()}
+      {getMouth()}
     </Svg>
   );
 }
@@ -695,6 +845,84 @@ function SealFace({ emotion, size }: { emotion: string; size: number }) {
   const bodyColor = EMOTION_COLORS[emotion]?.bg || '#9CB4C5';
   const bodyShadow = EMOTION_COLORS[emotion]?.light || '#839AAC';
   const muzzle = '#E8F0F5';
+  const dark = '#2A3440';
+
+  const getEyes = () => {
+    const eyeXL = cx - r * 0.28;
+    const eyeXR = cx + r * 0.28;
+    const eyeY = cy - r * 0.12;
+    switch (emotion) {
+      case 'happy':
+        return (
+          <G>
+            <Path d={`M${eyeXL - r * 0.08} ${eyeY} Q${eyeXL} ${eyeY - r * 0.10} ${eyeXL + r * 0.08} ${eyeY}`}
+                  stroke={dark} strokeWidth={s * 0.026} fill="none" strokeLinecap="round" />
+            <Path d={`M${eyeXR - r * 0.08} ${eyeY} Q${eyeXR} ${eyeY - r * 0.10} ${eyeXR + r * 0.08} ${eyeY}`}
+                  stroke={dark} strokeWidth={s * 0.026} fill="none" strokeLinecap="round" />
+          </G>
+        );
+      case 'sad':
+        return (
+          <G>
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.09} fill={dark} />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.09} fill={dark} />
+            <Circle cx={eyeXL - r * 0.03} cy={eyeY - r * 0.03} r={r * 0.03} fill="#FFF" opacity={0.85} />
+            <Circle cx={eyeXR - r * 0.03} cy={eyeY - r * 0.03} r={r * 0.03} fill="#FFF" opacity={0.85} />
+            <Ellipse cx={eyeXL + r * 0.08} cy={eyeY + r * 0.15} rx={r * 0.025} ry={r * 0.04} fill="#90CAF9" opacity={0.7} />
+          </G>
+        );
+      case 'angry':
+        return (
+          <G>
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.10} fill={dark} />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.10} fill={dark} />
+            <Path d={`M${eyeXL - r * 0.14} ${eyeY - r * 0.06} L${eyeXL + r * 0.10} ${eyeY - r * 0.14}`}
+                  stroke={dark} strokeWidth={s * 0.022} fill="none" strokeLinecap="round" />
+            <Path d={`M${eyeXR + r * 0.14} ${eyeY - r * 0.06} L${eyeXR - r * 0.10} ${eyeY - r * 0.14}`}
+                  stroke={dark} strokeWidth={s * 0.022} fill="none" strokeLinecap="round" />
+          </G>
+        );
+      case 'surprised':
+        return (
+          <G>
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.13} fill="white" />
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.07} fill={dark} />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.13} fill="white" />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.07} fill={dark} />
+          </G>
+        );
+      default:
+        return (
+          <G>
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.10} fill={dark} />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.10} fill={dark} />
+            <Circle cx={eyeXL - r * 0.03} cy={eyeY - r * 0.03} r={r * 0.03} fill="#FFF" opacity={0.85} />
+            <Circle cx={eyeXR + r * 0.03} cy={eyeY - r * 0.03} r={r * 0.03} fill="#FFF" opacity={0.85} />
+          </G>
+        );
+    }
+  };
+
+  const getMouth = () => {
+    const mx = cx;
+    const my = cy + r * 0.30;
+    switch (emotion) {
+      case 'happy':
+        return <Path d={`M${mx - r * 0.24} ${my} Q${mx} ${my + r * 0.17} ${mx + r * 0.24} ${my}`}
+                     stroke={dark} strokeWidth={s * 0.02} fill="none" strokeLinecap="round" />;
+      case 'sad':
+        return <Path d={`M${mx - r * 0.18} ${my + r * 0.06} Q${mx} ${my - r * 0.06} ${mx + r * 0.18} ${my + r * 0.06}`}
+                     stroke={dark} strokeWidth={s * 0.018} fill="none" strokeLinecap="round" />;
+      case 'angry':
+        return <Path d={`M${mx - r * 0.14} ${my} L${mx + r * 0.14} ${my + r * 0.02}`}
+                     stroke={dark} strokeWidth={s * 0.022} fill="none" strokeLinecap="round" />;
+      case 'surprised':
+        return <Ellipse cx={mx} cy={my} rx={r * 0.07} ry={r * 0.09} fill={dark} opacity={0.5} />;
+      default:
+        return <Path d={`M${mx - r * 0.20} ${my} Q${mx} ${my - r * 0.06} ${mx + r * 0.20} ${my}`}
+                     stroke={dark} strokeWidth={s * 0.018} fill="none" strokeLinecap="round" />;
+    }
+  };
 
   return (
     <Svg width={s} height={s} viewBox={`0 0 ${s} ${s}`}>
@@ -707,29 +935,10 @@ function SealFace({ emotion, size }: { emotion: string; size: number }) {
       <Ellipse cx={cx - r * 0.58} cy={cy - r * 0.05} rx={r * 0.12} ry={r * 0.08} fill="#FFC6CF" opacity={0.4} />
       <Ellipse cx={cx + r * 0.58} cy={cy - r * 0.05} rx={r * 0.12} ry={r * 0.08} fill="#FFC6CF" opacity={0.4} />
 
-      <Circle cx={cx - r * 0.28} cy={cy - r * 0.12} r={r * 0.1} fill="#2A3440" />
-      <Circle cx={cx + r * 0.28} cy={cy - r * 0.12} r={r * 0.1} fill="#2A3440" />
-      <Circle cx={cx - r * 0.31} cy={cy - r * 0.15} r={r * 0.03} fill="#FFF" opacity={0.85} />
-      <Circle cx={cx + r * 0.25} cy={cy - r * 0.15} r={r * 0.03} fill="#FFF" opacity={0.85} />
+      <Ellipse cx={cx} cy={cy + r * 0.1} rx={r * 0.1} ry={r * 0.08} fill={dark} />
 
-      <Ellipse cx={cx} cy={cy + r * 0.1} rx={r * 0.1} ry={r * 0.08} fill="#2A3440" />
-      {emotion === 'happy' ? (
-        <Path
-          d={`M${cx - r * 0.24} ${cy + r * 0.28} Q${cx} ${cy + r * 0.45} ${cx + r * 0.24} ${cy + r * 0.28}`}
-          stroke="#2A3440"
-          strokeWidth={s * 0.02}
-          fill="none"
-          strokeLinecap="round"
-        />
-      ) : (
-        <Path
-          d={`M${cx - r * 0.2} ${cy + r * 0.31} Q${cx} ${cy + r * 0.25} ${cx + r * 0.2} ${cy + r * 0.31}`}
-          stroke="#2A3440"
-          strokeWidth={s * 0.018}
-          fill="none"
-          strokeLinecap="round"
-        />
-      )}
+      {getEyes()}
+      {getMouth()}
 
       <Path d={`M${cx - r * 0.18} ${cy + r * 0.17} L${cx - r * 0.58} ${cy + r * 0.13}`} stroke="#6B7D8A" strokeWidth={1.6} opacity={0.75} />
       <Path d={`M${cx - r * 0.18} ${cy + r * 0.23} L${cx - r * 0.58} ${cy + r * 0.27}`} stroke="#6B7D8A" strokeWidth={1.6} opacity={0.75} />
@@ -748,35 +957,100 @@ function HamsterFace({ emotion, size }: { emotion: string; size: number }) {
   const cy = s / 2;
   const r = s * 0.36;
   const color = EMOTION_COLORS[emotion]?.bg || '#F5C98A';
+  const dark = '#3E2723';
+
+  const getEyes = () => {
+    const eyeXL = cx - r * 0.28;
+    const eyeXR = cx + r * 0.28;
+    const eyeY = cy - r * 0.1;
+    switch (emotion) {
+      case 'happy':
+        return (
+          <G>
+            <Path d={`M${eyeXL - r * 0.08} ${eyeY} Q${eyeXL} ${eyeY - r * 0.10} ${eyeXL + r * 0.08} ${eyeY}`}
+                  stroke={dark} strokeWidth={s * 0.026} fill="none" strokeLinecap="round" />
+            <Path d={`M${eyeXR - r * 0.08} ${eyeY} Q${eyeXR} ${eyeY - r * 0.10} ${eyeXR + r * 0.08} ${eyeY}`}
+                  stroke={dark} strokeWidth={s * 0.026} fill="none" strokeLinecap="round" />
+          </G>
+        );
+      case 'sad':
+        return (
+          <G>
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.09} fill={dark} />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.09} fill={dark} />
+            <Circle cx={eyeXL - r * 0.03} cy={eyeY - r * 0.03} r={r * 0.025} fill="#FFF" />
+            <Circle cx={eyeXR - r * 0.03} cy={eyeY - r * 0.03} r={r * 0.025} fill="#FFF" />
+            <Ellipse cx={eyeXL + r * 0.07} cy={eyeY + r * 0.14} rx={r * 0.02} ry={r * 0.04} fill="#90CAF9" opacity={0.7} />
+          </G>
+        );
+      case 'angry':
+        return (
+          <G>
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.10} fill={dark} />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.10} fill={dark} />
+            <Path d={`M${eyeXL - r * 0.14} ${eyeY - r * 0.06} L${eyeXL + r * 0.08} ${eyeY - r * 0.14}`}
+                  stroke={dark} strokeWidth={s * 0.022} fill="none" strokeLinecap="round" />
+            <Path d={`M${eyeXR + r * 0.14} ${eyeY - r * 0.06} L${eyeXR - r * 0.08} ${eyeY - r * 0.14}`}
+                  stroke={dark} strokeWidth={s * 0.022} fill="none" strokeLinecap="round" />
+          </G>
+        );
+      case 'surprised':
+        return (
+          <G>
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.12} fill="white" />
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.07} fill={dark} />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.12} fill="white" />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.07} fill={dark} />
+          </G>
+        );
+      default:
+        return (
+          <G>
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.10} fill={dark} />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.10} fill={dark} />
+            <Circle cx={eyeXL - r * 0.03} cy={eyeY - r * 0.03} r={r * 0.03} fill="#FFF" />
+            <Circle cx={eyeXR - r * 0.03} cy={eyeY - r * 0.03} r={r * 0.03} fill="#FFF" />
+          </G>
+        );
+    }
+  };
+
+  const getMouth = () => {
+    const mx = cx;
+    const my = cy + r * 0.22;
+    switch (emotion) {
+      case 'happy':
+        return <Path d={`M${mx - r * 0.16} ${my} Q${mx} ${my + r * 0.14} ${mx + r * 0.16} ${my}`}
+                     stroke="#5D4037" strokeWidth={s * 0.02} fill="none" strokeLinecap="round" />;
+      case 'sad':
+        return <Path d={`M${mx - r * 0.12} ${my + r * 0.06} Q${mx} ${my - r * 0.04} ${mx + r * 0.12} ${my + r * 0.06}`}
+                     stroke="#5D4037" strokeWidth={s * 0.018} fill="none" strokeLinecap="round" />;
+      case 'angry':
+        return <Path d={`M${mx - r * 0.10} ${my} L${mx + r * 0.10} ${my + r * 0.02}`}
+                     stroke="#5D4037" strokeWidth={s * 0.02} fill="none" strokeLinecap="round" />;
+      case 'surprised':
+        return <Ellipse cx={mx} cy={my} rx={r * 0.06} ry={r * 0.08} fill="#5D4037" opacity={0.5} />;
+      default:
+        return <Path d={`M${mx - r * 0.1} ${my} L${mx + r * 0.1} ${my}`}
+                     stroke="#5D4037" strokeWidth={s * 0.018} strokeLinecap="round" />;
+    }
+  };
 
   return (
     <Svg width={s} height={s} viewBox={`0 0 ${s} ${s}`}>
-      {/* Round ears */}
       <Circle cx={cx - r * 0.72} cy={cy - r * 0.52} r={r * 0.22} fill={color} />
       <Circle cx={cx + r * 0.72} cy={cy - r * 0.52} r={r * 0.22} fill={color} />
       <Circle cx={cx - r * 0.72} cy={cy - r * 0.52} r={r * 0.12} fill="#FFD4B8" opacity={0.8} />
       <Circle cx={cx + r * 0.72} cy={cy - r * 0.52} r={r * 0.12} fill="#FFD4B8" opacity={0.8} />
-      {/* Chubby head */}
       <Ellipse cx={cx} cy={cy} rx={r * 1.08} ry={r * 0.92} fill={color} />
-      {/* Cheek pouches */}
       <Ellipse cx={cx - r * 0.62} cy={cy + r * 0.15} rx={r * 0.28} ry={r * 0.22} fill="#FFE0B2" opacity={0.85} />
       <Ellipse cx={cx + r * 0.62} cy={cy + r * 0.15} rx={r * 0.28} ry={r * 0.22} fill="#FFE0B2" opacity={0.85} />
-      {/* Eyes */}
-      <Circle cx={cx - r * 0.28} cy={cy - r * 0.1} r={r * 0.1} fill="#3E2723" />
-      <Circle cx={cx + r * 0.28} cy={cy - r * 0.1} r={r * 0.1} fill="#3E2723" />
-      <Circle cx={cx - r * 0.31} cy={cy - r * 0.13} r={r * 0.03} fill="#FFF" />
-      <Circle cx={cx + r * 0.25} cy={cy - r * 0.13} r={r * 0.03} fill="#FFF" />
-      {/* Nose */}
+
       <Circle cx={cx} cy={cy + r * 0.08} r={r * 0.06} fill="#FF8A80" />
-      {/* Mouth */}
-      {emotion === 'happy' ? (
-        <Path d={`M${cx - r * 0.16} ${cy + r * 0.22} Q${cx} ${cy + r * 0.36} ${cx + r * 0.16} ${cy + r * 0.22}`}
-              stroke="#5D4037" strokeWidth={s * 0.02} fill="none" strokeLinecap="round" />
-      ) : (
-        <Path d={`M${cx - r * 0.1} ${cy + r * 0.22} L${cx + r * 0.1} ${cy + r * 0.22}`}
-              stroke="#5D4037" strokeWidth={s * 0.018} strokeLinecap="round" />
-      )}
-      {/* Blush */}
+
+      {getEyes()}
+      {getMouth()}
+
       <Ellipse cx={cx - r * 0.5} cy={cy + r * 0.08} rx={r * 0.1} ry={r * 0.06} fill="#FFB3BA" opacity={0.5} />
       <Ellipse cx={cx + r * 0.5} cy={cy + r * 0.08} rx={r * 0.1} ry={r * 0.06} fill="#FFB3BA" opacity={0.5} />
     </Svg>
@@ -791,35 +1065,108 @@ function PenguinFace({ emotion, size }: { emotion: string; size: number }) {
   const r = s * 0.38;
   const color = EMOTION_COLORS[emotion]?.bg || '#2C3E50';
   const belly = '#F0F4F8';
+  const dark = '#1A1A2E';
+
+  const getEyes = () => {
+    const eyeXL = cx - r * 0.25;
+    const eyeXR = cx + r * 0.25;
+    const eyeY = cy - r * 0.18;
+    switch (emotion) {
+      case 'happy':
+        return (
+          <G>
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.12} fill="white" />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.12} fill="white" />
+            <Path d={`M${eyeXL - r * 0.06} ${eyeY + r * 0.02} Q${eyeXL} ${eyeY - r * 0.06} ${eyeXL + r * 0.06} ${eyeY + r * 0.02}`}
+                  stroke={dark} strokeWidth={s * 0.024} fill="none" strokeLinecap="round" />
+            <Path d={`M${eyeXR - r * 0.06} ${eyeY + r * 0.02} Q${eyeXR} ${eyeY - r * 0.06} ${eyeXR + r * 0.06} ${eyeY + r * 0.02}`}
+                  stroke={dark} strokeWidth={s * 0.024} fill="none" strokeLinecap="round" />
+          </G>
+        );
+      case 'sad':
+        return (
+          <G>
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.12} fill="white" />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.12} fill="white" />
+            <Circle cx={eyeXL} cy={eyeY + r * 0.02} r={r * 0.06} fill={dark} />
+            <Circle cx={eyeXR} cy={eyeY + r * 0.02} r={r * 0.06} fill={dark} />
+            <Path d={`M${eyeXL - r * 0.10} ${eyeY - r * 0.06} Q${eyeXL} ${eyeY - r * 0.12} ${eyeXL + r * 0.10} ${eyeY - r * 0.10}`}
+                  stroke={dark} strokeWidth={s * 0.014} fill="none" strokeLinecap="round" />
+            <Path d={`M${eyeXR - r * 0.10} ${eyeY - r * 0.10} Q${eyeXR} ${eyeY - r * 0.12} ${eyeXR + r * 0.10} ${eyeY - r * 0.06}`}
+                  stroke={dark} strokeWidth={s * 0.014} fill="none" strokeLinecap="round" />
+          </G>
+        );
+      case 'angry':
+        return (
+          <G>
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.12} fill="white" />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.12} fill="white" />
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.07} fill={dark} />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.07} fill={dark} />
+            <Path d={`M${eyeXL - r * 0.12} ${eyeY - r * 0.06} L${eyeXL + r * 0.08} ${eyeY - r * 0.14}`}
+                  stroke={dark} strokeWidth={s * 0.022} fill="none" strokeLinecap="round" />
+            <Path d={`M${eyeXR + r * 0.12} ${eyeY - r * 0.06} L${eyeXR - r * 0.08} ${eyeY - r * 0.14}`}
+                  stroke={dark} strokeWidth={s * 0.022} fill="none" strokeLinecap="round" />
+          </G>
+        );
+      case 'surprised':
+        return (
+          <G>
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.14} fill="white" />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.14} fill="white" />
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.08} fill={dark} />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.08} fill={dark} />
+            <Circle cx={eyeXL - r * 0.03} cy={eyeY - r * 0.03} r={r * 0.02} fill="#FFF" />
+            <Circle cx={eyeXR - r * 0.03} cy={eyeY - r * 0.03} r={r * 0.02} fill="#FFF" />
+          </G>
+        );
+      default:
+        return (
+          <G>
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.12} fill="white" />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.12} fill="white" />
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.07} fill={dark} />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.07} fill={dark} />
+            <Circle cx={eyeXL - r * 0.03} cy={eyeY - r * 0.03} r={r * 0.025} fill="#FFF" />
+            <Circle cx={eyeXR - r * 0.03} cy={eyeY - r * 0.03} r={r * 0.025} fill="#FFF" />
+          </G>
+        );
+    }
+  };
+
+  const getMouth = () => {
+    const mx = cx;
+    const my = cy + r * 0.26;
+    switch (emotion) {
+      case 'happy':
+        return <Path d={`M${mx - r * 0.18} ${my} Q${mx} ${my + r * 0.14} ${mx + r * 0.18} ${my}`}
+                     stroke={dark} strokeWidth={s * 0.018} fill="none" strokeLinecap="round" />;
+      case 'sad':
+        return <Path d={`M${mx - r * 0.14} ${my + r * 0.06} Q${mx} ${my - r * 0.04} ${mx + r * 0.14} ${my + r * 0.06}`}
+                     stroke={dark} strokeWidth={s * 0.016} fill="none" strokeLinecap="round" />;
+      case 'angry':
+        return <Path d={`M${mx - r * 0.12} ${my} L${mx + r * 0.12} ${my + r * 0.02}`}
+                     stroke={dark} strokeWidth={s * 0.020} fill="none" strokeLinecap="round" />;
+      case 'surprised':
+        return <Ellipse cx={mx} cy={my} rx={r * 0.06} ry={r * 0.08} fill={dark} opacity={0.5} />;
+      default:
+        return <Path d={`M${mx - r * 0.12} ${my} Q${mx} ${my - r * 0.04} ${mx + r * 0.12} ${my}`}
+                     stroke={dark} strokeWidth={s * 0.016} fill="none" strokeLinecap="round" />;
+    }
+  };
 
   return (
     <Svg width={s} height={s} viewBox={`0 0 ${s} ${s}`}>
-      {/* Body (oval) */}
       <Ellipse cx={cx} cy={cy} rx={r * 0.92} ry={r} fill={color} />
-      {/* White belly */}
       <Ellipse cx={cx} cy={cy + r * 0.08} rx={r * 0.6} ry={r * 0.72} fill={belly} />
-      {/* Eyes */}
-      <Circle cx={cx - r * 0.25} cy={cy - r * 0.18} r={r * 0.12} fill="white" />
-      <Circle cx={cx + r * 0.25} cy={cy - r * 0.18} r={r * 0.12} fill="white" />
-      <Circle cx={cx - r * 0.25} cy={cy - r * 0.18} r={r * 0.07} fill="#1A1A2E" />
-      <Circle cx={cx + r * 0.25} cy={cy - r * 0.18} r={r * 0.07} fill="#1A1A2E" />
-      <Circle cx={cx - r * 0.28} cy={cy - r * 0.21} r={r * 0.025} fill="#FFF" />
-      <Circle cx={cx + r * 0.22} cy={cy - r * 0.21} r={r * 0.025} fill="#FFF" />
-      {/* Beak */}
       <Path d={`M${cx - r * 0.12} ${cy + r * 0.02} L${cx} ${cy + r * 0.18} L${cx + r * 0.12} ${cy + r * 0.02} Z`}
             fill="#F4B400" />
-      {/* Mouth */}
-      {emotion === 'happy' ? (
-        <Path d={`M${cx - r * 0.18} ${cy + r * 0.26} Q${cx} ${cy + r * 0.4} ${cx + r * 0.18} ${cy + r * 0.26}`}
-              stroke="#1A1A2E" strokeWidth={s * 0.018} fill="none" strokeLinecap="round" />
-      ) : (
-        <Path d={`M${cx - r * 0.12} ${cy + r * 0.28} Q${cx} ${cy + r * 0.24} ${cx + r * 0.12} ${cy + r * 0.28}`}
-              stroke="#1A1A2E" strokeWidth={s * 0.016} fill="none" strokeLinecap="round" />
-      )}
-      {/* Cheek blush */}
+
+      {getEyes()}
+      {getMouth()}
+
       <Ellipse cx={cx - r * 0.42} cy={cy + r * 0.02} rx={r * 0.1} ry={r * 0.06} fill="#FFB3BA" opacity={0.5} />
       <Ellipse cx={cx + r * 0.42} cy={cy + r * 0.02} rx={r * 0.1} ry={r * 0.06} fill="#FFB3BA" opacity={0.5} />
-      {/* Feet hints */}
       <Ellipse cx={cx - r * 0.25} cy={cy + r * 0.88} rx={r * 0.14} ry={r * 0.06} fill="#F4B400" opacity={0.7} />
       <Ellipse cx={cx + r * 0.25} cy={cy + r * 0.88} rx={r * 0.14} ry={r * 0.06} fill="#F4B400" opacity={0.7} />
     </Svg>
@@ -1040,17 +1387,101 @@ function UnicornFace({ emotion, size }: { emotion: string; size: number }) {
   const cy = s / 2;
   const r = s * 0.36;
   const color = EMOTION_COLORS[emotion]?.bg || '#F3E5F5';
+  const dark = '#4A148C';
+
+  const getEyes = () => {
+    const eyeXL = cx - r * 0.3;
+    const eyeXR = cx + r * 0.3;
+    const eyeY = cy - r * 0.08;
+    switch (emotion) {
+      case 'happy':
+        return (
+          <G>
+            <Path d={`M${eyeXL - r * 0.08} ${eyeY} Q${eyeXL} ${eyeY - r * 0.12} ${eyeXL + r * 0.08} ${eyeY}`}
+                  stroke={dark} strokeWidth={s * 0.026} fill="none" strokeLinecap="round" />
+            <Path d={`M${eyeXR - r * 0.08} ${eyeY} Q${eyeXR} ${eyeY - r * 0.12} ${eyeXR + r * 0.08} ${eyeY}`}
+                  stroke={dark} strokeWidth={s * 0.026} fill="none" strokeLinecap="round" />
+            <Circle cx={eyeXL + r * 0.12} cy={eyeY - r * 0.08} r={r * 0.025} fill="#FFD54F" opacity={0.8} />
+            <Circle cx={eyeXR + r * 0.12} cy={eyeY - r * 0.08} r={r * 0.025} fill="#FFD54F" opacity={0.8} />
+          </G>
+        );
+      case 'sad':
+        return (
+          <G>
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.13} fill={dark} />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.13} fill={dark} />
+            <Circle cx={eyeXL - r * 0.04} cy={eyeY - r * 0.04} r={r * 0.05} fill="white" />
+            <Circle cx={eyeXR - r * 0.04} cy={eyeY - r * 0.04} r={r * 0.05} fill="white" />
+            <Ellipse cx={eyeXL + r * 0.10} cy={eyeY + r * 0.18} rx={r * 0.025} ry={r * 0.05} fill="#CE93D8" opacity={0.7} />
+          </G>
+        );
+      case 'angry':
+        return (
+          <G>
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.13} fill={dark} />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.13} fill={dark} />
+            <Circle cx={eyeXL - r * 0.04} cy={eyeY - r * 0.04} r={r * 0.05} fill="white" />
+            <Circle cx={eyeXR - r * 0.04} cy={eyeY - r * 0.04} r={r * 0.05} fill="white" />
+            <Path d={`M${eyeXL - r * 0.14} ${eyeY - r * 0.08} L${eyeXL + r * 0.10} ${eyeY - r * 0.16}`}
+                  stroke={dark} strokeWidth={s * 0.024} fill="none" strokeLinecap="round" />
+            <Path d={`M${eyeXR + r * 0.14} ${eyeY - r * 0.08} L${eyeXR - r * 0.10} ${eyeY - r * 0.16}`}
+                  stroke={dark} strokeWidth={s * 0.024} fill="none" strokeLinecap="round" />
+          </G>
+        );
+      case 'surprised':
+        return (
+          <G>
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.15} fill={dark} />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.15} fill={dark} />
+            <Circle cx={eyeXL - r * 0.04} cy={eyeY - r * 0.05} r={r * 0.06} fill="white" />
+            <Circle cx={eyeXR - r * 0.04} cy={eyeY - r * 0.05} r={r * 0.06} fill="white" />
+            <Circle cx={eyeXL + r * 0.04} cy={eyeY + r * 0.04} r={r * 0.03} fill="white" opacity={0.7} />
+            <Circle cx={eyeXR + r * 0.04} cy={eyeY + r * 0.04} r={r * 0.03} fill="white" opacity={0.7} />
+          </G>
+        );
+      default:
+        return (
+          <G>
+            <Circle cx={eyeXL} cy={eyeY} r={r * 0.13} fill={dark} />
+            <Circle cx={eyeXR} cy={eyeY} r={r * 0.13} fill={dark} />
+            <Circle cx={eyeXL - r * 0.04} cy={eyeY - r * 0.04} r={r * 0.05} fill="white" />
+            <Circle cx={eyeXR - r * 0.04} cy={eyeY - r * 0.04} r={r * 0.05} fill="white" />
+            <Circle cx={eyeXL + r * 0.04} cy={eyeY + r * 0.02} r={r * 0.025} fill="white" opacity={0.7} />
+            <Circle cx={eyeXR + r * 0.04} cy={eyeY + r * 0.02} r={r * 0.025} fill="white" opacity={0.7} />
+          </G>
+        );
+    }
+  };
+
+  const getMouth = () => {
+    const mx = cx;
+    const my = cy + r * 0.28;
+    switch (emotion) {
+      case 'happy':
+        return <Path d={`M${mx - r * 0.20} ${my} Q${mx} ${my + r * 0.14} ${mx + r * 0.20} ${my}`}
+                     stroke="#6A1B9A" strokeWidth={s * 0.02} fill="none" strokeLinecap="round" />;
+      case 'sad':
+        return <Path d={`M${mx - r * 0.16} ${my + r * 0.06} Q${mx} ${my - r * 0.06} ${mx + r * 0.16} ${my + r * 0.06}`}
+                     stroke="#6A1B9A" strokeWidth={s * 0.018} fill="none" strokeLinecap="round" />;
+      case 'angry':
+        return <Path d={`M${mx - r * 0.14} ${my} L${mx + r * 0.14} ${my + r * 0.02}`}
+                     stroke="#6A1B9A" strokeWidth={s * 0.022} fill="none" strokeLinecap="round" />;
+      case 'surprised':
+        return <Ellipse cx={mx} cy={my} rx={r * 0.07} ry={r * 0.09} fill="#6A1B9A" opacity={0.4} />;
+      default:
+        return <Path d={`M${mx - r * 0.15} ${my} Q${mx} ${my - r * 0.04} ${mx + r * 0.15} ${my}`}
+                     stroke="#6A1B9A" strokeWidth={s * 0.018} fill="none" strokeLinecap="round" />;
+    }
+  };
 
   return (
     <Svg width={s} height={s} viewBox={`0 0 ${s} ${s}`}>
-      {/* Horn */}
       <Path d={`M${cx} ${cy - r * 1.15} L${cx - r * 0.12} ${cy - r * 0.65} L${cx + r * 0.12} ${cy - r * 0.65} Z`}
             fill="#FFD54F" />
       <Path d={`M${cx - r * 0.04} ${cy - r * 1.0} L${cx + r * 0.04} ${cy - r * 0.85}`}
             stroke="#FFF176" strokeWidth={2} opacity={0.7} />
       <Path d={`M${cx - r * 0.06} ${cy - r * 0.88} L${cx + r * 0.06} ${cy - r * 0.75}`}
             stroke="#FFF176" strokeWidth={2} opacity={0.7} />
-      {/* Ears */}
       <Path d={`M${cx - r * 0.62} ${cy - r * 0.55} L${cx - r * 0.42} ${cy - r * 0.95} L${cx - r * 0.22} ${cy - r * 0.6} Z`}
             fill={color} />
       <Path d={`M${cx + r * 0.62} ${cy - r * 0.55} L${cx + r * 0.42} ${cy - r * 0.95} L${cx + r * 0.22} ${cy - r * 0.6} Z`}
@@ -1059,31 +1490,16 @@ function UnicornFace({ emotion, size }: { emotion: string; size: number }) {
             fill="#F8BBD0" opacity={0.6} />
       <Path d={`M${cx + r * 0.55} ${cy - r * 0.58} L${cx + r * 0.42} ${cy - r * 0.85} L${cx + r * 0.28} ${cy - r * 0.62} Z`}
             fill="#F8BBD0" opacity={0.6} />
-      {/* Head */}
       <Circle cx={cx} cy={cy} r={r} fill={color} />
-      {/* Mane hint (colorful stripes) */}
       <Path d={`M${cx + r * 0.65} ${cy - r * 0.55} Q${cx + r * 0.95} ${cy - r * 0.2} ${cx + r * 0.75} ${cy + r * 0.15}`}
             stroke="#E88AED" strokeWidth={r * 0.08} fill="none" strokeLinecap="round" opacity={0.6} />
       <Path d={`M${cx + r * 0.72} ${cy - r * 0.48} Q${cx + r * 1.02} ${cy - r * 0.1} ${cx + r * 0.82} ${cy + r * 0.22}`}
             stroke="#82B1FF" strokeWidth={r * 0.06} fill="none" strokeLinecap="round" opacity={0.5} />
-      {/* Eyes (sparkly) */}
-      <Circle cx={cx - r * 0.3} cy={cy - r * 0.08} r={r * 0.13} fill="#4A148C" />
-      <Circle cx={cx + r * 0.3} cy={cy - r * 0.08} r={r * 0.13} fill="#4A148C" />
-      <Circle cx={cx - r * 0.33} cy={cy - r * 0.12} r={r * 0.05} fill="white" />
-      <Circle cx={cx + r * 0.27} cy={cy - r * 0.12} r={r * 0.05} fill="white" />
-      <Circle cx={cx - r * 0.26} cy={cy - r * 0.04} r={r * 0.025} fill="white" opacity={0.7} />
-      <Circle cx={cx + r * 0.34} cy={cy - r * 0.04} r={r * 0.025} fill="white" opacity={0.7} />
-      {/* Nose */}
       <Ellipse cx={cx} cy={cy + r * 0.12} rx={r * 0.08} ry={r * 0.06} fill="#CE93D8" />
-      {/* Mouth */}
-      {emotion === 'happy' ? (
-        <Path d={`M${cx - r * 0.2} ${cy + r * 0.28} Q${cx} ${cy + r * 0.42} ${cx + r * 0.2} ${cy + r * 0.28}`}
-              stroke="#6A1B9A" strokeWidth={s * 0.02} fill="none" strokeLinecap="round" />
-      ) : (
-        <Path d={`M${cx - r * 0.15} ${cy + r * 0.3} Q${cx} ${cy + r * 0.26} ${cx + r * 0.15} ${cy + r * 0.3}`}
-              stroke="#6A1B9A" strokeWidth={s * 0.018} fill="none" strokeLinecap="round" />
-      )}
-      {/* Star sparkle */}
+
+      {getEyes()}
+      {getMouth()}
+
       <Path d={`M${cx - r * 0.7} ${cy - r * 0.3} l${r * 0.06} ${r * 0.02} l${r * 0.02} ${r * 0.06} l${r * 0.02} ${-r * 0.06} l${r * 0.06} ${-r * 0.02} l${-r * 0.06} ${-r * 0.02} l${-r * 0.02} ${-r * 0.06} l${-r * 0.02} ${r * 0.06} Z`}
             fill="#FFD54F" opacity={0.6} />
     </Svg>
