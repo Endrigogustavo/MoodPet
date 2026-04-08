@@ -51,7 +51,7 @@ export const HomeEmotionPanel = React.memo(function HomeEmotionPanel({
 
       // 1) Emotion change: apply immediately (the hook/store already has hysteresis).
       if (currentEmotion.emotion !== prev.emotion) {
-        const uiCooldownOk = now - lastUiSwapAtRef.current >= 700;
+        const uiCooldownOk = now - lastUiSwapAtRef.current >= 450;
         if (!uiCooldownOk) return;
         lastUiSwapAtRef.current = now;
         displayedEmotionRef.current = currentEmotion;
@@ -59,18 +59,23 @@ export const HomeEmotionPanel = React.memo(function HomeEmotionPanel({
         return;
       }
 
-      // 2) Same emotion: keep UI frozen to avoid "refresh" feeling.
-      // Only reflect face status changes (already stabilized in the detection hook).
-      if (currentEmotion.faceDetected !== prev.faceDetected) {
-        const uiCooldownOk = now - lastUiSwapAtRef.current >= 450;
+      // 2) Same emotion: update if confidence, intensity, quality, streak, or face status changed.
+      const significantChange =
+        currentEmotion.faceDetected !== prev.faceDetected ||
+        Math.abs(currentEmotion.confidence - prev.confidence) >= 0.03 ||
+        currentEmotion.emotionIntensity !== prev.emotionIntensity ||
+        currentEmotion.compoundEmotion !== prev.compoundEmotion ||
+        Math.abs((currentEmotion.faceQualityScore ?? 0) - (prev.faceQualityScore ?? 0)) >= 0.03 ||
+        Math.abs((currentEmotion.emotionStreakSeconds ?? 0) - (prev.emotionStreakSeconds ?? 0)) >= 1 ||
+        currentEmotion.heartRateBpm !== prev.heartRateBpm ||
+        currentEmotion.heartRateStatus !== prev.heartRateStatus;
+
+      if (significantChange) {
+        const uiCooldownOk = now - lastUiSwapAtRef.current >= 300;
         if (!uiCooldownOk) return;
         lastUiSwapAtRef.current = now;
-        const nextDisplayed = {
-          ...prev,
-          faceDetected: currentEmotion.faceDetected,
-        };
-        displayedEmotionRef.current = nextDisplayed;
-        setDisplayedEmotion(nextDisplayed);
+        displayedEmotionRef.current = currentEmotion;
+        setDisplayedEmotion(currentEmotion);
       }
     });
 
@@ -83,6 +88,46 @@ export const HomeEmotionPanel = React.memo(function HomeEmotionPanel({
   );
 
   const confidencePct = Math.round(displayedEmotion.confidence * 100);
+  const qualityPct = Math.round((displayedEmotion.faceQualityScore ?? 0) * 100);
+  const streakMin = Math.floor((displayedEmotion.emotionStreakSeconds ?? 0) / 60);
+  const streakSec = Math.round((displayedEmotion.emotionStreakSeconds ?? 0) % 60);
+
+  const heartBpm = displayedEmotion.heartRateBpm;
+  const heartStatus = displayedEmotion.heartRateStatus ?? 'collecting';
+  const heartReady = heartStatus === 'ready' && heartBpm != null;
+  const heartColor = heartReady
+    ? heartBpm! > 100 ? Colors.error : heartBpm! < 60 ? '#4A90D9' : Colors.success
+    : Colors.textTertiary;
+
+  const INTENSITY_LABELS: Record<string, string> = {
+    calm: 'Calmo',
+    mild: 'Leve',
+    moderate: 'Moderado',
+    intense: 'Intenso',
+    extreme: 'Extremo',
+  };
+  const INTENSITY_COLORS: Record<string, string> = {
+    calm: Colors.textTertiary,
+    mild: Colors.success,
+    moderate: Colors.warning,
+    intense: '#FF8C00',
+    extreme: Colors.error,
+  };
+  const intensityLabel = INTENSITY_LABELS[displayedEmotion.emotionIntensity] ?? 'Leve';
+  const intensityColor = INTENSITY_COLORS[displayedEmotion.emotionIntensity] ?? Colors.textTertiary;
+
+  const COMPOUND_LABELS: Record<string, string> = {
+    bittersweet: 'Agridoce',
+    frustrated: 'Frustrado(a)',
+    awe: 'Encantado(a)',
+    anxious_sad: 'Triste e ansioso(a)',
+    nervous_excited: 'Empolgado(a) nervoso(a)',
+    contempt: 'Desdém',
+    apprehensive: 'Apreensivo(a)',
+    melancholic: 'Melancólico(a)',
+    embarrassed: 'Envergonhado(a)',
+  };
+
   const topScores = useMemo(() => {
     const entries = Object.entries(displayedEmotion.allScores || {});
     return entries.sort((a, b) => b[1] - a[1]).slice(0, 3);
@@ -110,24 +155,64 @@ export const HomeEmotionPanel = React.memo(function HomeEmotionPanel({
           petType={petType}
           size={width * 0.62}
           animate={true}
+          faceDetected={displayedEmotion.faceDetected}
         />
       </View>
 
       <View style={styles.sectionGap}>
         <View style={styles.kpiRow}>
           <View style={[styles.kpiCard, Shadow.sm]}>
-            <Text style={styles.kpiLabel}>Precisão atual</Text>
+            <Text style={styles.kpiLabel}>Precisão</Text>
             <Text style={[styles.kpiValue, { color: emotionMeta.bg }]}>{confidencePct}%</Text>
             <Text style={styles.kpiSub}>{displayedEmotion.emotionVariant}</Text>
           </View>
           <View style={[styles.kpiCard, Shadow.sm]}>
-            <Text style={styles.kpiLabel}>Rosto</Text>
-            <Text style={[styles.kpiValue, { color: displayedEmotion.faceDetected ? Colors.success : Colors.textTertiary }]}> 
+            <Text style={styles.kpiLabel}>Intensidade</Text>
+            <Text style={[styles.kpiValue, { color: intensityColor }]}>{intensityLabel}</Text>
+            <Text style={styles.kpiSub}>
               {displayedEmotion.faceDetected ? 'Detectado' : 'Ausente'}
             </Text>
           </View>
         </View>
+        <View style={[styles.kpiRow, { marginTop: Spacing.xs }]}>
+          <View style={[styles.kpiCard, Shadow.sm]}>
+            <Text style={styles.kpiLabel}>Qualidade</Text>
+            <Text style={[styles.kpiValue, { color: qualityPct >= 50 ? Colors.success : Colors.warning }]}>
+              {qualityPct > 0 ? `${qualityPct}%` : '—'}
+            </Text>
+            {displayedEmotion.faceQualityTips?.length > 0 && (
+              <Text style={styles.kpiSub} numberOfLines={1}>
+                {displayedEmotion.faceQualityTips[0]}
+              </Text>
+            )}
+          </View>
+          <View style={[styles.kpiCard, Shadow.sm]}>
+            <Text style={styles.kpiLabel}>Duração</Text>
+            <Text style={[styles.kpiValue, { color: emotionMeta.bg }]}>
+              {streakMin > 0 ? `${streakMin}m ${streakSec}s` : `${streakSec}s`}
+            </Text>
+            <Text style={styles.kpiSub}>mesma emoção</Text>
+          </View>
+          <View style={[styles.kpiCard, Shadow.sm]}>
+            <Text style={styles.kpiLabel}>❤️ Batimento</Text>
+            <Text style={[styles.kpiValue, { color: heartColor }]}>
+              {heartReady ? `${Math.round(heartBpm!)}` : '...'}
+            </Text>
+            <Text style={styles.kpiSub}>
+              {heartReady ? 'bpm' : heartStatus === 'collecting' ? 'medindo' : 'instável'}
+            </Text>
+          </View>
+        </View>
       </View>
+
+      {displayedEmotion.compoundEmotion && (
+        <View style={[styles.compoundBadge, styles.sectionGap, Shadow.sm]}>
+          <MaterialCommunityIcons name="heart-pulse" size={16} color={Colors.primary} />
+          <Text style={styles.compoundText}>
+            Emoção mista: {COMPOUND_LABELS[displayedEmotion.compoundEmotion] ?? displayedEmotion.compoundEmotion}
+          </Text>
+        </View>
+      )}
 
       {topScores.length > 0 && (
         <View style={[styles.scorePanel, styles.sectionGap, Shadow.sm]}>
@@ -325,5 +410,20 @@ const styles = StyleSheet.create({
   musicCaption: {
     fontSize: Typography.xs,
     color: Colors.textTertiary,
+  },
+  compoundBadge: {
+    marginHorizontal: Spacing.base,
+    backgroundColor: Colors.primaryLight,
+    borderRadius: Radius.xl,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.base,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  compoundText: {
+    fontSize: Typography.sm,
+    fontWeight: Typography.semibold,
+    color: Colors.primary,
   },
 });

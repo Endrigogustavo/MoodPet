@@ -6,23 +6,23 @@ import Constants from 'expo-constants';
 import { ApiService } from '../services/api';
 import { useAppStore } from './useStore';
 
-// Faster near-real-time loop with adaptive backoff on repeated failures.
-const BASE_FRAME_INTERVAL_MS = 1000;
-const MAX_FRAME_INTERVAL_MS = 1300;
-const EMOTION_SWITCH_STREAK = 2;
-const CONFIDENCE_DELTA_MIN = 0.28;
+// High-precision real-time loop: 1 frame per second, higher quality capture.
+const BASE_FRAME_INTERVAL_MS = 800;
+const MAX_FRAME_INTERVAL_MS = 1000;
+const EMOTION_SWITCH_STREAK = 1;
+const CONFIDENCE_DELTA_MIN = 0.02;
 const DISCONNECT_AFTER_ERRORS = 5;
-const FACE_FOUND_STREAK = 2;
-const FACE_LOST_STREAK = 7;
-const SAME_EMOTION_UI_MIN_INTERVAL_MS = Number.POSITIVE_INFINITY;
-const ENABLE_SAME_EMOTION_SYNC = false;
+const FACE_FOUND_STREAK = 1;
+const FACE_LOST_STREAK = 5;
+const SAME_EMOTION_UI_MIN_INTERVAL_MS = 1500;
+const ENABLE_SAME_EMOTION_SYNC = true;
 const NEGATIVE_STREAK_ALERT_MS = 2 * 60 * 1000;
 const ALERT_COOLDOWN_MS = 5 * 60 * 1000;
 const SUPPORT_CHAT_COOLDOWN_MS = 70 * 1000;
 const SUPPORT_VOICE_INTERVAL_MS = 45 * 1000;
-const MIN_EMOTION_SWITCH_INTERVAL_MS = 700;
-const NO_FACE_PROBE_INTERVAL_MS = 700;
-const ANDROID_MIN_CAPTURE_INTERVAL_MS = 850;
+const MIN_EMOTION_SWITCH_INTERVAL_MS = 350;
+const NO_FACE_PROBE_INTERVAL_MS = 400;
+const ANDROID_MIN_CAPTURE_INTERVAL_MS = 650;
 
 export function useEmotionDetection() {
   const loopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -51,7 +51,7 @@ export function useEmotionDetection() {
   const nextApiProbeAtRef = useRef(0);
   const apiProbeBackoffMsRef = useRef(750);
   const dynamicIntervalMsRef = useRef(BASE_FRAME_INTERVAL_MS);
-  const captureQualityRef = useRef(0.44);
+  const captureQualityRef = useRef(0.55);
   const notificationEnabledRef = useRef(false);
   const notificationsModuleRef = useRef<any>(null);
 
@@ -155,7 +155,6 @@ export function useEmotionDetection() {
       const captureOptions = {
         quality: captureQualityRef.current,
         base64: true,
-        skipProcessing: true,
         ...(Platform.OS === 'android' ? { shutterSound: false, mute: true } : {}),
       };
 
@@ -223,8 +222,8 @@ export function useEmotionDetection() {
 
       const current = useAppStore.getState().currentEmotion;
       const lowConfidenceAnxiousLike =
-        ['anxious', 'angry', 'disgusted'].includes(result.emotion) && result.confidence < 0.38;
-      const veryLowConfidenceAnyEmotion = result.emotion !== 'neutral' && result.confidence < 0.16;
+        ['anxious', 'angry', 'disgusted'].includes(result.emotion) && result.confidence < 0.25;
+      const veryLowConfidenceAnyEmotion = result.emotion !== 'neutral' && result.confidence < 0.08;
       const nextEmotion =
         lowConfidenceAnxiousLike || veryLowConfidenceAnyEmotion
           ? 'neutral'
@@ -239,9 +238,9 @@ export function useEmotionDetection() {
       const lowSignal = !result.face_detected || result.confidence < 0.58 || dominanceGap < 0.1;
       const strongSignal = result.face_detected && result.confidence >= 0.78 && dominanceGap >= 0.16;
       if (lowSignal) {
-        captureQualityRef.current = Math.min(0.62, captureQualityRef.current + 0.05);
+        captureQualityRef.current = Math.min(0.85, captureQualityRef.current + 0.05);
       } else if (strongSignal) {
-        captureQualityRef.current = Math.max(0.4, captureQualityRef.current - 0.03);
+        captureQualityRef.current = Math.max(0.55, captureQualityRef.current - 0.03);
       }
 
       // Change spoken message only when emotion actually changes.
@@ -249,11 +248,13 @@ export function useEmotionDetection() {
 
       const minConfidenceForSwitch =
         nextEmotion === 'happy' || nextEmotion === 'sad'
-          ? 0.52
+          ? 0.30
           : nextEmotion === 'surprised'
-            ? 0.55
-            : 0.66;
-      const signalReliable = stableFaceDetected && result.confidence >= minConfidenceForSwitch && dominanceGap >= 0.1;
+            ? 0.35
+            : nextEmotion === 'neutral'
+              ? 0.10
+              : 0.40;
+      const signalReliable = stableFaceDetected && result.confidence >= minConfidenceForSwitch && dominanceGap >= 0.05;
 
       // Smooth switching: require repeated detection before changing emotion.
       let shouldApplyEmotion = false;
@@ -291,7 +292,7 @@ export function useEmotionDetection() {
         sameEmotionAsCurrent &&
         stableFaceDetected &&
         ENABLE_SAME_EMOTION_SYNC &&
-        ((hasMeaningfulConfidenceShift && dominanceGap >= 0.18) || sameEmotionSyncWindowReached);
+        ((hasMeaningfulConfidenceShift && dominanceGap >= 0.05) || sameEmotionSyncWindowReached);
 
       if (shouldApplyEmotion || shouldSyncSameEmotion || current.faceDetected !== stableFaceDetected || alertFlagsChanged) {
         const appliedEmotion = shouldApplyEmotion ? nextEmotion : lastAppliedEmotionRef.current;
@@ -308,6 +309,14 @@ export function useEmotionDetection() {
           allScores: shouldApplyEmotion ? result.all_scores : current.allScores,
           noFaceAlertFired: result.no_face_alert,
           shouldTriggerAlert: result.should_trigger_alert,
+          compoundEmotion: result.compound_emotion ?? null,
+          emotionIntensity: result.emotion_intensity ?? 'mild',
+          faceQualityScore: result.face_quality_metrics?.quality_score ?? 0,
+          faceQualityTips: result.face_quality_metrics?.tips ?? [],
+          emotionStreakSeconds: result.emotion_streak_seconds ?? 0,
+          heartRateBpm: result.heart_rate_bpm ?? null,
+          heartRateConfidence: result.heart_rate_confidence ?? 0,
+          heartRateStatus: result.heart_rate_status ?? 'collecting',
         });
 
         if (shouldApplyEmotion || shouldSyncSameEmotion) {
@@ -510,7 +519,7 @@ export function useEmotionDetection() {
     nextApiProbeAtRef.current = 0;
     apiProbeBackoffMsRef.current = 750;
     dynamicIntervalMsRef.current = BASE_FRAME_INTERVAL_MS;
-    captureQualityRef.current = 0.44;
+    captureQualityRef.current = 0.65;
     loopTimerRef.current = setTimeout(captureAndAnalyze, 80);
   }, [captureAndAnalyze]);
 
@@ -529,7 +538,7 @@ export function useEmotionDetection() {
     nextApiProbeAtRef.current = 0;
     apiProbeBackoffMsRef.current = 750;
     dynamicIntervalMsRef.current = BASE_FRAME_INTERVAL_MS;
-    captureQualityRef.current = 0.44;
+    captureQualityRef.current = 0.65;
     setConnected(false);
   }, [setConnected]);
 

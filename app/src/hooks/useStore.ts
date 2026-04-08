@@ -14,6 +14,14 @@ export interface EmotionState {
   allScores: Record<string, number>;
   noFaceAlertFired: boolean;
   shouldTriggerAlert: boolean;
+  compoundEmotion: string | null;
+  emotionIntensity: string;
+  faceQualityScore: number;
+  faceQualityTips: string[];
+  emotionStreakSeconds: number;
+  heartRateBpm: number | null;
+  heartRateConfidence: number;
+  heartRateStatus: string;
 }
 
 export interface AppState {
@@ -27,7 +35,7 @@ export interface AppState {
 
   // Settings
   settings: {
-    petType: 'dog' | 'cat' | 'bunny' | 'bear' | 'fox' | 'panda' | 'owl' | 'seal';
+    petType: 'dog' | 'cat' | 'bunny' | 'bear' | 'fox' | 'panda' | 'owl' | 'seal' | 'hamster' | 'penguin' | 'capybara' | 'unicorn';
     petName: string;
     musicEnabled: boolean;
     alertsEnabled: boolean;
@@ -83,6 +91,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     allScores: {},
     noFaceAlertFired: false,
     shouldTriggerAlert: false,
+    compoundEmotion: null,
+    emotionIntensity: 'calm',
+    faceQualityScore: 0,
+    faceQualityTips: [],
+    emotionStreakSeconds: 0,
+    heartRateBpm: null,
+    heartRateConfidence: 0,
+    heartRateStatus: 'collecting',
   },
 
   settings: {
@@ -113,12 +129,18 @@ export const useAppStore = create<AppState>((set, get) => ({
         nextEmotion.emotionVariant !== state.currentEmotion.emotionVariant ||
         nextEmotion.emotionZone !== state.currentEmotion.emotionZone ||
         nextEmotion.supportTip !== state.currentEmotion.supportTip ||
-        Math.abs(nextEmotion.confidence - state.currentEmotion.confidence) >= 0.05 ||
+        Math.abs(nextEmotion.confidence - state.currentEmotion.confidence) >= 0.03 ||
         nextEmotion.secondaryEmotion !== state.currentEmotion.secondaryEmotion ||
         nextEmotion.message !== state.currentEmotion.message ||
         nextEmotion.faceDetected !== state.currentEmotion.faceDetected ||
         nextEmotion.noFaceAlertFired !== state.currentEmotion.noFaceAlertFired ||
         nextEmotion.shouldTriggerAlert !== state.currentEmotion.shouldTriggerAlert ||
+        nextEmotion.compoundEmotion !== state.currentEmotion.compoundEmotion ||
+        nextEmotion.emotionIntensity !== state.currentEmotion.emotionIntensity ||
+        Math.abs((nextEmotion.faceQualityScore ?? 0) - (state.currentEmotion.faceQualityScore ?? 0)) >= 0.03 ||
+        Math.abs((nextEmotion.emotionStreakSeconds ?? 0) - (state.currentEmotion.emotionStreakSeconds ?? 0)) >= 1 ||
+        nextEmotion.heartRateBpm !== state.currentEmotion.heartRateBpm ||
+        nextEmotion.heartRateStatus !== state.currentEmotion.heartRateStatus ||
         JSON.stringify(nextEmotion.musicSuggestions) !== JSON.stringify(state.currentEmotion.musicSuggestions) ||
         buildEmotionScoreSignature(nextEmotion.allScores) !== buildEmotionScoreSignature(state.currentEmotion.allScores);
 

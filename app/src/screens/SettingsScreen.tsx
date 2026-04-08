@@ -17,6 +17,10 @@ const PET_TYPES = [
   { id: 'panda', icon: 'yin-yang', label: 'Panda' },
   { id: 'owl', icon: 'bird', label: 'Coruja' },
   { id: 'seal', icon: 'seal', label: 'Foca' },
+  { id: 'hamster', icon: 'rodent', label: 'Hamster' },
+  { id: 'penguin', icon: 'penguin', label: 'Pinguim' },
+  { id: 'capybara', icon: 'rodent', label: 'Capivara' },
+  { id: 'unicorn', icon: 'unicorn-variant', label: 'Unicórnio' },
 ] as const;
 
 export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {

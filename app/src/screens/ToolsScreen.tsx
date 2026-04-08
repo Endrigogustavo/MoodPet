@@ -208,6 +208,143 @@ export const ToolsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     openChatWithText('Passe agua fria no rosto por 20 segundos e volte para me dizer se a intensidade caiu.');
   }, [openChatWithText]);
 
+  const openMeditation = useCallback(async () => {
+    try {
+      const data = await ApiService.getMeditation({ emotion: currentEmotion.emotion });
+      const steps = data.steps.map((s, i) => `${i + 1}. ${s}`).join('\n');
+      openChatWithText(`🧘 *${data.title}* (${data.duration_minutes} min)\n\n${data.intro}\n\n${steps}\n\n${data.closing}`);
+    } catch { openChatWithText('Vamos meditar juntos. Feche os olhos e respire fundo por 3 ciclos.'); }
+  }, [currentEmotion.emotion, openChatWithText]);
+
+  const openReframing = useCallback(async () => {
+    try {
+      const data = await ApiService.getCognitiveReframing({ emotion: currentEmotion.emotion });
+      const steps = data.steps.map((s, i) => `${i + 1}. ${s}`).join('\n');
+      openChatWithText(`🧠 *${data.title}*\n\nPensamento automático: "${data.automatic_thought}"\n\n${steps}\n\nPensamento alternativo: "${data.alternative_thought}"`);
+    } catch { openChatWithText('Vamos reestruturar um pensamento. Me diga o que está passando pela sua cabeça agora.'); }
+  }, [currentEmotion.emotion, openChatWithText]);
+
+  const openJournalPrompts = useCallback(async () => {
+    try {
+      const data = await ApiService.getJournalPrompts({ emotion: currentEmotion.emotion });
+      const prompts = data.prompts.map((p, i) => `${i + 1}. ${p}`).join('\n');
+      openChatWithText(`📓 *${data.title}*\n\n${data.intro}\n\n${prompts}`);
+    } catch { openChatWithText('Escreva uma frase sobre o que mais pesou hoje. Eu continuo com você.'); }
+  }, [currentEmotion.emotion, openChatWithText]);
+
+  const openMuscleRelax = useCallback(async () => {
+    try {
+      const data = await ApiService.getMuscleRelaxation({ emotion: currentEmotion.emotion });
+      const groups = data.muscle_groups.map((g, i) => `${i + 1}. *${g.name}*: ${g.instruction} (${g.hold_seconds}s tensão → ${g.release_seconds}s solta)`).join('\n');
+      openChatWithText(`💪 *${data.title}* (${data.duration_minutes} min)\n\n${data.intro}\n\n${groups}\n\n${data.closing}`);
+    } catch { openChatWithText('Vamos fazer relaxamento muscular progressivo. Comece contraindo os pés por 5 segundos e soltando.'); }
+  }, [currentEmotion.emotion, openChatWithText]);
+
+  const openSleep = useCallback(async () => {
+    try {
+      const data = await ApiService.getSleepHygiene({ emotion: currentEmotion.emotion });
+      const tips = data.tips.map((t, i) => `${i + 1}. ${t}`).join('\n');
+      openChatWithText(`🌙 *${data.title}*\n\n${tips}\n\nRotina sugerida: ${data.evening_routine}\n\n${data.note}`);
+    } catch { openChatWithText('Algumas dicas para uma noite melhor: evite telas 1h antes, mantenha o quarto escuro e fresco.'); }
+  }, [currentEmotion.emotion, openChatWithText]);
+
+  const openEducation = useCallback(async () => {
+    try {
+      const data = await ApiService.getEmotionEducation({ emotion: currentEmotion.emotion });
+      const funcs = data.functions.map((f, i) => `${i + 1}. ${f}`).join('\n');
+      const strats = data.strategies.map((s, i) => `${i + 1}. ${s}`).join('\n');
+      openChatWithText(`📚 *${data.title}*\n\n${data.description}\n\nFunções:\n${funcs}\n\nEstratégias:\n${strats}\n\n💡 ${data.curiosity}`);
+    } catch { openChatWithText('Vamos aprender sobre o que você está sentindo. Me diga qual emoção quer entender melhor.'); }
+  }, [currentEmotion.emotion, openChatWithText]);
+
+  const openGratitude = useCallback(async () => {
+    try {
+      const data = await ApiService.getGratitude({ emotion: currentEmotion.emotion });
+      const prompts = data.prompts.map((p, i) => `${i + 1}. ${p}`).join('\n');
+      openChatWithText(`🙏 *${data.title}*\n\n${data.intro}\n\n${prompts}\n\n${data.closing}`);
+    } catch { openChatWithText('Liste 3 coisas pelas quais você é grato hoje, por menores que sejam.'); }
+  }, [currentEmotion.emotion, openChatWithText]);
+
+  const openSocial = useCallback(async () => {
+    try {
+      const data = await ApiService.getSocialConnection({ emotion: currentEmotion.emotion });
+      const suggestions = data.suggestions.map((s, i) => `${i + 1}. ${s}`).join('\n');
+      openChatWithText(`👥 *${data.title}*\n\n${data.intro}\n\n${suggestions}\n\n${data.conversation_starter}`);
+    } catch { openChatWithText('Mande uma mensagem curta para alguém que você gosta. Conexão faz diferença.'); }
+  }, [currentEmotion.emotion, openChatWithText]);
+
+  const openCrisis = useCallback(async () => {
+    try {
+      const data = await ApiService.getCrisisResources({ emotion: currentEmotion.emotion, confidence: currentEmotion.confidence });
+      const hotlines = data.hotlines.map(h => `📞 ${h.name}: ${h.number} (${h.hours})`).join('\n');
+      const safety = data.safety_plan.map((s, i) => `${i + 1}. ${s}`).join('\n');
+      openChatWithText(`🆘 *${data.title}*\n\n${data.message}\n\n${hotlines}\n\nPlano de segurança:\n${safety}\n\n⚠️ ${data.disclaimer}`);
+    } catch { openChatWithText('CVV: ligue 188 ou acesse cvv.org.br — disponível 24h. Você não está sozinho.'); }
+  }, [currentEmotion.emotion, currentEmotion.confidence, openChatWithText]);
+
+  const openEnergy = useCallback(async () => {
+    try {
+      const data = await ApiService.getEnergyBoost({ emotion: currentEmotion.emotion });
+      const activities = data.activities.map((a, i) => `${i + 1}. *${a.name}* (${a.duration}): ${a.description}`).join('\n');
+      openChatWithText(`⚡ *${data.title}*\n\n${data.intro}\n\n${activities}`);
+    } catch { openChatWithText('Levante, faça 10 polichinelos e beba um copo de água. Energia instantânea!'); }
+  }, [currentEmotion.emotion, openChatWithText]);
+
+  const openFocusMode = useCallback(async () => {
+    try {
+      const data = await ApiService.getFocusMode({ emotion: currentEmotion.emotion });
+      const tasks = data.tasks.map((t, i) => `${i + 1}. ${t}`).join('\n');
+      openChatWithText(`🎯 *${data.title}* (${data.duration_minutes} min)\n\n${data.technique}\n\nTarefas:\n${tasks}\n\n${data.break_suggestion}`);
+    } catch { openChatWithText('Modo foco: escolha 1 tarefa, coloque timer de 25 min e comece. Eu te espero.'); }
+  }, [currentEmotion.emotion, openChatWithText]);
+
+  const openPlaylist = useCallback(async () => {
+    try {
+      const data = await ApiService.getEmotionPlaylist({ emotion: currentEmotion.emotion });
+      const tracks = data.tracks.map((t, i) => `${i + 1}. 🎵 ${t.title} — ${t.artist}`).join('\n');
+      openChatWithText(`🎶 *${data.title}*\n\n${data.description}\n\n${tracks}`);
+    } catch { openChatWithText('Ouça música que combine com seu momento. Me diga o gênero e eu sugiro.'); }
+  }, [currentEmotion.emotion, openChatWithText]);
+
+  const openBodyScan = useCallback(async () => {
+    try {
+      const data = await ApiService.getBodyScan({ emotion: currentEmotion.emotion });
+      const areas = data.body_areas.map((a, i) => `${i + 1}. *${a.area}*: ${a.instruction}`).join('\n');
+      openChatWithText(`🧘 *${data.title}* (${data.duration_minutes} min)\n\n${areas}\n\n${data.closing_message}`);
+    } catch { openChatWithText('Vamos fazer um body scan. Feche os olhos e comece pelo topo da cabeça.'); }
+  }, [currentEmotion.emotion, openChatWithText]);
+
+  const openVisualization = useCallback(async () => {
+    try {
+      const data = await ApiService.getVisualization({ emotion: currentEmotion.emotion });
+      const steps = data.guided_steps.map((s, i) => `${i + 1}. ${s}`).join('\n');
+      const senses = Object.entries(data.sensory_details).map(([k, v]) => `• ${k}: ${v}`).join('\n');
+      openChatWithText(`🌄 *${data.title}*\n\n${data.scenario}\n\n${steps}\n\nDetalhes sensoriais:\n${senses}\n\n✨ ${data.closing_affirmation}`);
+    } catch { openChatWithText('Feche os olhos e imagine um lugar seguro e bonito. Descreva o que você vê.'); }
+  }, [currentEmotion.emotion, openChatWithText]);
+
+  const openAffirmations = useCallback(async () => {
+    try {
+      const data = await ApiService.getAffirmations({ emotion: currentEmotion.emotion });
+      const affs = data.affirmations.map((a, i) => `${i + 1}. "${a}"`).join('\n');
+      openChatWithText(`💬 *Afirmações Positivas*\n\n${affs}\n\n🪞 ${data.mirror_exercise}\n\nRepita ${data.repeat_count}x cada.\n\n${data.closing}`);
+      if (voiceAssistantEnabled && data.affirmations.length > 0) {
+        Speech.speak(data.affirmations[0], { language: 'pt-BR', pitch: 1, rate: 0.9 });
+      }
+    } catch { openChatWithText('Repita: eu estou fazendo o melhor que posso e isso é suficiente.'); }
+  }, [currentEmotion.emotion, openChatWithText, voiceAssistantEnabled]);
+
+  const openEmotionWheel = useCallback(async () => {
+    try {
+      const data = await ApiService.getEmotionWheel({ emotion: currentEmotion.emotion });
+      const secondary = data.secondary_emotions.join(', ');
+      const nuanced = data.nuanced_feelings.join(', ');
+      const body = data.body_map.map((b, i) => `${i + 1}. ${b}`).join('\n');
+      const coping = data.coping_match.map((c, i) => `${i + 1}. ${c}`).join('\n');
+      openChatWithText(`🎯 *Roda Emocional: ${data.primary_emotion}*\n\n${data.description}\n\nEmoções secundárias: ${secondary}\nNuances: ${nuanced}\n\nMapa corporal:\n${body}\n\nEstratégias:\n${coping}`);
+    } catch { openChatWithText('Vamos explorar sua emoção. Me diga: o que exatamente você está sentindo?'); }
+  }, [currentEmotion.emotion, openChatWithText]);
+
   const handleToolAction = useCallback((action: string) => {
     switch (action) {
       case 'start_breathing':
@@ -240,10 +377,42 @@ export const ToolsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         return selfCompassion();
       case 'cooldown':
         return cooldown();
+      case 'open_meditation':
+        return openMeditation();
+      case 'open_reframing':
+        return openReframing();
+      case 'open_journal_prompts':
+        return openJournalPrompts();
+      case 'open_muscle_relax':
+        return openMuscleRelax();
+      case 'open_sleep':
+        return openSleep();
+      case 'open_education':
+        return openEducation();
+      case 'open_gratitude':
+        return openGratitude();
+      case 'open_social':
+        return openSocial();
+      case 'open_crisis':
+        return openCrisis();
+      case 'open_energy':
+        return openEnergy();
+      case 'open_focus_mode':
+        return openFocusMode();
+      case 'open_playlist':
+        return openPlaylist();
+      case 'open_body_scan':
+        return openBodyScan();
+      case 'open_visualization':
+        return openVisualization();
+      case 'open_affirmations':
+        return openAffirmations();
+      case 'open_emotion_wheel':
+        return openEmotionWheel();
       default:
         return openChat();
     }
-  }, [cooldown, grounding, hydrate, journal, moodSummary, navigation, openChat, openChatWithText, openReset, selfCompassion, startBreathing, startStretch]);
+  }, [cooldown, grounding, hydrate, journal, moodSummary, navigation, openChat, openChatWithText, openReset, selfCompassion, startBreathing, startStretch, openMeditation, openReframing, openJournalPrompts, openMuscleRelax, openSleep, openEducation, openGratitude, openSocial, openCrisis, openEnergy, openFocusMode, openPlaylist, openBodyScan, openVisualization, openAffirmations, openEmotionWheel]);
 
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
@@ -346,6 +515,37 @@ export const ToolsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             </View>
           </View>
         ) : null}
+
+        <View style={[styles.tipCard, Shadow.sm]}>
+          <Text style={styles.cardTitle}>Novas ferramentas</Text>
+          <View style={styles.grid}>
+            <ToolCard
+              icon="human-handsdown"
+              title="Body Scan"
+              subtitle="Escaneie seu corpo e libere tensões"
+              onPress={openBodyScan}
+            />
+            <ToolCard
+              icon="image-filter-hdr"
+              title="Visualização"
+              subtitle="Cenário guiado para relaxar"
+              onPress={openVisualization}
+            />
+            <ToolCard
+              icon="message-text-outline"
+              title="Afirmações"
+              subtitle="Frases positivas personalizadas"
+              onPress={openAffirmations}
+              accent
+            />
+            <ToolCard
+              icon="chart-donut"
+              title="Roda Emocional"
+              subtitle="Explore nuances do que sente"
+              onPress={openEmotionWheel}
+            />
+          </View>
+        </View>
 
         <View style={[styles.tipCard, Shadow.sm]}>
           <Text style={styles.cardTitle}>Sugestão rápida</Text>
