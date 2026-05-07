@@ -309,6 +309,7 @@ O sistema funciona sem IA configurada (modo fallback), mas para:
 
 ---
 
+
 ## Créditos
 Endrigo Gustavo Brandão de Oliveira
 Gabriel Messias da Silva
