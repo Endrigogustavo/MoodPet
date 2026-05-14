@@ -209,23 +209,6 @@ O sistema funciona sem IA configurada (modo fallback), mas para:
 | IA | Anthropic Claude API, OpenAI API |
 | IoT | Raspberry Pi 5, Python, rpi_ws281x, pygame |
 
-### Arquitetura
-
-```
-┌──────────────┐     frame (base64)     ┌──────────────┐
-│  App Mobile  │ ──────────────────────▶│  FastAPI     │
-│  React Native│ ◀─────────────────────│  (Python)    │
-└──────────────┘   emotion + message    │              │
-                                        │  DeepFace /  │
-┌──────────────┐     frame (base64)     │  OpenCV      │
-│  IoT Device  │ ──────────────────────▶│              │
-│  Raspberry Pi│ ◀─────────────────────│  Anthropic   │
-└──────────────┘   emotion + LEDs       │  Claude API  │
-                                        └──────────────┘
-                                               │
-                                         SQLite DB
-```
-
 ### Topologia de Componentes
 
 **API Backend (Núcleo)**
